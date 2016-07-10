@@ -2,15 +2,18 @@
 
 const static int num_inputs = 1;
 const static int cycles_buffer_len = 1024;
-const static int min_pulse_len = 3;      // uS
-const static int min_big_pulse_len = 40; // uS
+
+const static int min_pulse_len = 3;       // uS
+const static int min_big_pulse_len = 40;  // uS
+const static int max_big_pulse_len = 300; // uS
+const static int cycle_period = 8333;  // uS, total len of 1 cycle.
+const static int second_big_pulse_delay = 400; // uS.
+
 const static int num_big_pulses_in_cycle = 2;
 const static int num_cycle_phases = 4;
 const static int decoded_data_max_len = 50;
 const static int num_data_frames = 10;
 
-const static int cycle_period = 8333;  // uS, total len of 1 cycle.
-const static int second_big_pulse_delay = 400; // uS.
 
 struct bit_decoder {
     int center_pulse_len; // uS
@@ -47,6 +50,9 @@ struct cycle {
 struct input_data {
     uint32_t rise_time;  // uS, time of the start of current pulse
     uint32_t dac_level;  // level of dac, 0..63
+
+    bool fix_acquired;
+    uint32_t fix_cycle_offset;
 
     uint32_t crossings;       // number of interrupts
     uint32_t small_pulses;    // number of small pulses (laser)

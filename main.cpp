@@ -2,8 +2,8 @@
 
 // Comparator-specific data
 input_data global_input_data[num_inputs] = {{
-    // rise_start, dac_level
-    0, 10,
+    // rise_start, dac_level, fix_acquired, fix_cycle_offset
+    0, 10, false, 0,
 
     // crossings, small_pulses, big_pulses, fake_big_pulses
     0, 0, 0, 0,
@@ -38,8 +38,8 @@ void loop() {
                 case 'w': printCycles = !printCycles; prevCycleId = -1; break;
                 case 'b': printFrames = !printFrames; break;
                 case 'd': printDecoders = !printDecoders; break;
-                case '+': setCmpDacLevel(d.dac_level++); Serial.printf("DAC level: %d\n", d.dac_level); break;
-                case '-': setCmpDacLevel(d.dac_level--); Serial.printf("DAC level: %d\n", d.dac_level); break;
+                case '+': changeCmdDacLevel(d, +1); Serial.printf("DAC level: %d\n", d.dac_level); break;
+                case '-': changeCmdDacLevel(d, -1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 default: break;
             }
         }
@@ -48,17 +48,18 @@ void loop() {
             for (; d.cycles_read_idx != d.cycles_write_idx; INC_CONSTRAINED(d.cycles_read_idx, cycles_buffer_len)) {
                 cycle &c = d.cycles[d.cycles_read_idx];
                 if (c.phase_id == 0) {
-                    Serial.println("==================================");
+                    Serial.println("\n==================================");
                     prevCycleId = -1;
                 }
                 while (prevCycleId != -1 && prevCycleId+1 < (int)c.phase_id) {
                     prevCycleId++;
-                    Serial.printf("%d                 |", prevCycleId % 4);
+                    Serial.printf("%d                  |", prevCycleId % 4);
                     if (prevCycleId % 4 == 3)
                         Serial.println();
                 }
                 prevCycleId = (int)c.phase_id;
-                Serial.printf("%d %2d %3d %3d %4d |", c.phase_id % 4, c.dac_level, c.first_pulse_len, c.second_pulse_len, c.laser_pulse_pos);
+                char ch = (d.fix_acquired && d.fix_cycle_offset == c.phase_id % 4) ? '*' : ' ';
+                Serial.printf("%d%c %2d %3d %3d %4d |", c.phase_id % 4, ch, c.dac_level, c.first_pulse_len, c.second_pulse_len, c.laser_pulse_pos);
                 if (prevCycleId % 4 == 3)
                     Serial.println();
             }
@@ -104,7 +105,7 @@ void loop() {
     if (curMillis - prevMillis2 >= 34) {  // 33.33ms => 4 cycles
         prevMillis2 = curMillis;
 
-        // Comparator level dynamic adjustment.
+        // 1. Comparator level dynamic adjustment.
         __disable_irq();
         uint32_t crossings = d.crossings; d.crossings = 0;
         uint32_t big_pulses = d.big_pulses; d.big_pulses = 0;
@@ -133,13 +134,56 @@ void loop() {
                 changeCmdDacLevel(d, -1);
             }
         }
+
+        // 2. Fix flag & fix_cycle_offset
+        if (d.last_cycle_id > 30 && (curMillis - d.last_cycle_time / 1000) < 100) {
+            if (!d.fix_acquired) {
+                bool invalid_pulse_lens = false;
+                uint32_t min_idxes[2];
+                for (int i = 0; i < num_big_pulses_in_cycle && !invalid_pulse_lens; i++) {
+                    decoder &dec = d.decoders[i];
+
+                    // a. Find minimum len in bit_decoders
+                    uint32_t min_idx = 0;
+                    for (uint32_t j = 1; j < num_cycle_phases; j++)
+                        if (dec.bit_decoders[j].center_pulse_len < dec.bit_decoders[min_idx].center_pulse_len)
+                            min_idx = j;
+
+                    min_idxes[i] = min_idx;
+
+                    // b. Check that delta lens are as expected (10 - 30 - 10)
+                    uint32_t cur_idx = min_idx;
+                    int last_len = dec.bit_decoders[cur_idx].center_pulse_len;
+                    static const int valid_deltas[num_cycle_phases - 1] = {10, 30, 10};
+                    for (uint32_t j = 0; j < num_cycle_phases - 1; j++) {
+                        INC_CONSTRAINED(cur_idx, num_cycle_phases);
+                        int cur_len = dec.bit_decoders[cur_idx].center_pulse_len;
+                        if (abs(((cur_len - last_len) >> 4) - valid_deltas[j]) > 3) {
+                            invalid_pulse_lens = true;
+                            break;
+                        }
+                        last_len = cur_len;
+                    }
+                }
+
+                if (!invalid_pulse_lens && abs((int)min_idxes[0] - (int)min_idxes[1]) == 2) {
+                    // We've got a valid fix for both sources
+                    d.fix_acquired = true;
+                    d.fix_cycle_offset = min_idxes[1];
+                }
+            }
+        } else {
+            d.fix_acquired = false;
+        }
     }
 }
 
 inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len) {
     cycle &cur_cycle = d.cur_cycle;
 
-    if (pulse_len >= min_big_pulse_len) { // Large pulse
+    if (pulse_len >= max_big_pulse_len) {
+        // Ignore it.
+    } else if (pulse_len >= min_big_pulse_len) { // Large pulse
         d.big_pulses++;
         uint32_t time_from_cycle_start = start_time - cur_cycle.start_time;
         uint32_t delta_second_cycle = time_from_cycle_start - (second_big_pulse_delay - 20);
@@ -181,6 +225,8 @@ inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len
             }
         } else {
             // if delay from last successful cycle is more than 200ms then we lost tracking and we should try everything
+            d.last_cycle_time = 0;
+            d.last_cycle_id = 0;
             cur_cycle.start_time = start_time;
             cur_cycle.first_pulse_len = pulse_len;
             cur_cycle.phase_id = 0;
