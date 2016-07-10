@@ -2,8 +2,11 @@
 
 // Comparator-specific data
 input_data global_input_data[num_inputs] = {{
-    // rise_start, dac_level, changes, noise_pulses, fake_big_pulses
-    0, 10, 0,  0, 0,
+    // rise_start, dac_level
+    0, 10,
+
+    // crossings, small_pulses, big_pulses, fake_big_pulses
+    0, 0, 0, 0,
 
     // last_cycle_time, id, cycle
     0, 0, {},
@@ -19,13 +22,14 @@ input_data global_input_data[num_inputs] = {{
 // Print loop vars
 bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false;
 unsigned int loopCount = 0;
-unsigned int prevMillis = 0, curMillis;
+unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
 int prevCycleId = -1;
 
 void loop() {
     loopCount++;
     curMillis = millis();
     input_data &d = global_input_data[0];
+
     if (curMillis - prevMillis >= 1000) {
         prevMillis = curMillis;
         while (Serial.available()) {
@@ -43,14 +47,18 @@ void loop() {
         if (printCycles) {
             for (; d.cycles_read_idx != d.cycles_write_idx; INC_CONSTRAINED(d.cycles_read_idx, cycles_buffer_len)) {
                 cycle &c = d.cycles[d.cycles_read_idx];
-                while (prevCycleId == -1 && prevCycleId+1 < (int)c.phase_id) {
+                if (c.phase_id == 0) {
+                    Serial.println("==================================");
+                    prevCycleId = -1;
+                }
+                while (prevCycleId != -1 && prevCycleId+1 < (int)c.phase_id) {
                     prevCycleId++;
-                    Serial.printf("        -      |");
+                    Serial.printf("%d                 |", prevCycleId % 4);
                     if (prevCycleId % 4 == 3)
                         Serial.println();
                 }
                 prevCycleId = (int)c.phase_id;
-                Serial.printf("%d %3d %3d %4d |", c.phase_id % 4, c.first_pulse_len, c.second_pulse_len, c.laser_pulse_pos);
+                Serial.printf("%d %2d %3d %3d %4d |", c.phase_id % 4, c.dac_level, c.first_pulse_len, c.second_pulse_len, c.laser_pulse_pos);
                 if (prevCycleId % 4 == 3)
                     Serial.println();
             }
@@ -86,19 +94,53 @@ void loop() {
         if (printCountDelta) {
             Serial.println();
             Serial.printf("Loops: %d\n", loopCount); loopCount = 0;
-
-            Serial.printf("Changes: %d; %d; %d\n", d.changes, d.cycles_write_idx);
-            Serial.printf("Cur level: %d\n", getCmpLevel());
+            Serial.printf("Cycles write idx: %d\n", d.cycles_write_idx);
+            Serial.printf("Cur Dac level: %d (%d)\n", d.dac_level, getCmpLevel());
         }
 
         digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
+    }
+
+    if (curMillis - prevMillis2 >= 34) {  // 33.33ms => 4 cycles
+        prevMillis2 = curMillis;
+
+        // Comparator level dynamic adjustment.
+        __disable_irq();
+        uint32_t crossings = d.crossings; d.crossings = 0;
+        uint32_t big_pulses = d.big_pulses; d.big_pulses = 0;
+        uint32_t small_pulses = d.small_pulses; d.small_pulses = 0;
+        //uint32_t fake_big_pulses = d.fake_big_pulses; d.fake_big_pulses = 0;
+        __enable_irq();
+
+        if (crossings > 100) { // Comparator level is at the background noise level. Try to increase it.
+            changeCmdDacLevel(d, +3);
+
+        } else if (crossings == 0) { // No crossings of comparator level => too high or too low.
+            if (getCmpLevel() == 1) { // Level is too low
+                changeCmdDacLevel(d, +16);
+            } else { // Level is too high
+                changeCmdDacLevel(d, -9);
+            }
+        } else {
+
+            if (big_pulses <= 6) {
+                changeCmdDacLevel(d, -4);
+            } else if (big_pulses > 10) {
+                changeCmdDacLevel(d, +4);
+            } else if (small_pulses < 4) {
+
+                // Fine tune - we need 4 small pulses.
+                changeCmdDacLevel(d, -1);
+            }
+        }
     }
 }
 
 inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len) {
     cycle &cur_cycle = d.cur_cycle;
 
-    if (pulse_len > 50) { // Large pulse
+    if (pulse_len >= min_big_pulse_len) { // Large pulse
+        d.big_pulses++;
         uint32_t time_from_cycle_start = start_time - cur_cycle.start_time;
         uint32_t delta_second_cycle = time_from_cycle_start - (second_big_pulse_delay - 20);
         if (delta_second_cycle < 40) {  // We use that uint is > 0
@@ -121,7 +163,7 @@ inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len
 
         // Check if this can be initial pulse
         int delay_from_last_cycle = int(start_time - d.last_cycle_time);
-        if (delay_from_last_cycle < 100000) {
+        if (delay_from_last_cycle < 200000) {
             uint32_t id = d.last_cycle_id;
             while (delay_from_last_cycle > cycle_period/2) {
                 delay_from_last_cycle -= cycle_period;
@@ -132,26 +174,27 @@ inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len
                 cur_cycle.start_time = start_time;
                 cur_cycle.first_pulse_len = pulse_len;
                 cur_cycle.phase_id = id;
+                cur_cycle.dac_level = d.dac_level;
             } else {
                 // Ignore current pulse, wait for other ones.
                 d.fake_big_pulses++;
             }
         } else {
-            // if delay from last successful cycle is more than 100ms then we lost tracking and we should try everything
+            // if delay from last successful cycle is more than 200ms then we lost tracking and we should try everything
             cur_cycle.start_time = start_time;
             cur_cycle.first_pulse_len = pulse_len;
             cur_cycle.phase_id = 0;
+            cur_cycle.dac_level = d.dac_level;
         }
 
-    } else if (pulse_len > min_pulse_len) { // Small pulse
+    } else if (pulse_len >= min_pulse_len) { // Small pulse - probably laser sweep
+        d.small_pulses++;
         if (cur_cycle.start_time &&
                 (start_time - cur_cycle.start_time) < cycle_period &&
                 pulse_len > cur_cycle.laser_pulse_len) {
             cur_cycle.laser_pulse_len = pulse_len;
             cur_cycle.laser_pulse_pos = start_time + pulse_len/2 - cur_cycle.start_time;
         }
-    } else {
-        d.noise_pulses++;
     }
 }
 
@@ -161,7 +204,7 @@ void cmp0_isr() {
     const uint32_t cmpState = CMP0_SCR;
 
     input_data &d = global_input_data[0];
-    d.changes++;
+    d.crossings++;
 
     if (d.rise_time && (cmpState & CMP_SCR_CFF)) { // Fallen edge registered
         const uint32_t pulse_len = timestamp - d.rise_time;

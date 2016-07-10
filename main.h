@@ -2,7 +2,8 @@
 
 const static int num_inputs = 1;
 const static int cycles_buffer_len = 1024;
-const static int min_pulse_len = 3; // uS
+const static int min_pulse_len = 3;      // uS
+const static int min_big_pulse_len = 40; // uS
 const static int num_big_pulses_in_cycle = 2;
 const static int num_cycle_phases = 4;
 const static int decoded_data_max_len = 50;
@@ -40,14 +41,16 @@ struct cycle {
     uint32_t second_pulse_len;
     uint32_t laser_pulse_len;
     uint32_t laser_pulse_pos;
+    uint32_t dac_level;
 };
 
 struct input_data {
     uint32_t rise_time;  // uS, time of the start of current pulse
     uint32_t dac_level;  // level of dac, 0..63
 
-    uint32_t changes;       // number of interrupts
-    uint32_t noise_pulses;  // number of noisy pulses (less than min_pulse_len)
+    uint32_t crossings;       // number of interrupts
+    uint32_t small_pulses;    // number of small pulses (laser)
+    uint32_t big_pulses;      // number of total big pulses
     uint32_t fake_big_pulses; // number of wrong big pulses
 
     uint32_t last_cycle_time; // uS timestamp of start of last successful cycle
@@ -75,6 +78,11 @@ void extract_data_from_cycle(input_data &d, uint32_t first_pulse_len, uint32_t s
 static inline void setCmpDacLevel(uint32_t level) { // level = 0..63
     // DAC Control: Enable; Voltage ref=3v3; Output select=0
     CMP0_DACCR = CMP_DACCR_DACEN | CMP_DACCR_VRSEL | CMP_DACCR_VOSEL(level);
+}
+
+static inline void changeCmdDacLevel(input_data &d, int delta) {
+    d.dac_level = (uint32_t)max(1, min(63, (int)d.dac_level + delta));
+    setCmpDacLevel(d.dac_level);
 }
 
 static inline int getCmpLevel() {  // Current signal level: 0 or 1
