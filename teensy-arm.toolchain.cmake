@@ -81,6 +81,10 @@ if (NOT TARGET TeensyCore AND NOT ${CMAKE_SOURCE_DIR} MATCHES "CMakeTmp")
     add_library(TeensyCore ${TEENSY_C_CORE_FILES} ${TEENSY_CXX_CORE_FILES})
     link_libraries(TeensyCore)
     include_directories(${TEENSY_ROOT})
+
+    # Add CMSIS DSP library
+    link_directories(${TEENSY_ROOT})
+    link_libraries(arm_cortexM4l_math)
 endif (NOT TARGET TeensyCore AND NOT ${CMAKE_SOURCE_DIR} MATCHES "CMakeTmp")
 
 

@@ -12,7 +12,7 @@ input_data global_input_data[num_inputs] = {{
     0, 0, {},
 
     // cycles.
-    0, 0, {},
+    0, 0, 0, {},
 
     // decoders
     {}
@@ -169,11 +169,32 @@ void loop() {
                 if (!invalid_pulse_lens && abs((int)min_idxes[0] - (int)min_idxes[1]) == 2) {
                     // We've got a valid fix for both sources
                     d.fix_acquired = true;
-                    d.fix_cycle_offset = min_idxes[1];
+                    d.fix_cycle_offset = min_idxes[0];
+                    d.cycles_read_geom_idx = d.cycles_write_idx;
                 }
             }
         } else {
             d.fix_acquired = false;
+            for (int i = 0; i < num_cycle_phases; i++) {
+                d.angle_timestamps[i] = 0;
+                d.angle_lens[i] = 0;
+            }
+            d.angle_last_timestamp = 0;
+            d.angle_last_processed_timestamp = 0;
+        }
+
+        // 3. Read current angles and calculate geometry
+        if (d.fix_acquired && d.angle_last_timestamp > d.angle_last_processed_timestamp) {
+            bool can_update_geometry = true;
+            for (int i = 0; i < num_cycle_phases && can_update_geometry; i++)
+                if (d.angle_timestamps[i]/1000 < curMillis - 100)
+                    can_update_geometry = false;
+
+            if (can_update_geometry) {
+                update_geometry(d);
+
+                d.angle_last_processed_timestamp = d.angle_last_timestamp;
+            }
         }
     }
 }
@@ -202,6 +223,12 @@ inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len
             d.last_cycle_id = cur_cycle.phase_id;
 
             extract_data_from_cycle(d, cur_cycle.first_pulse_len, cur_cycle.second_pulse_len, cur_cycle.phase_id);
+            if (d.fix_acquired && cur_cycle.laser_pulse_pos > 0) {
+                uint32_t adjusted_id = (cur_cycle.phase_id + 4 - d.fix_cycle_offset) % 4;
+                d.angle_lens[adjusted_id] = cur_cycle.laser_pulse_pos - (adjusted_id >= 2 ? second_big_pulse_delay : 0);
+                d.angle_timestamps[adjusted_id] = cur_cycle.start_time;
+                d.angle_last_timestamp = cur_cycle.start_time;
+            }
         }
         cur_cycle = {};
 

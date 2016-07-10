@@ -8,6 +8,7 @@ const static int min_big_pulse_len = 40;  // uS
 const static int max_big_pulse_len = 300; // uS
 const static int cycle_period = 8333;  // uS, total len of 1 cycle.
 const static int second_big_pulse_delay = 400; // uS.
+const static int angle_center_len = 4000; // uS
 
 const static int num_big_pulses_in_cycle = 2;
 const static int num_cycle_phases = 4;
@@ -63,10 +64,14 @@ struct input_data {
     uint32_t last_cycle_id;   // 0..3
     cycle cur_cycle;          // Currently constructed cycle
 
-    int32_t cycles_write_idx, cycles_read_idx;
+    int32_t cycles_write_idx, cycles_read_idx, cycles_read_geom_idx;
     cycle cycles[cycles_buffer_len];
 
     decoder decoders[num_big_pulses_in_cycle];
+
+    uint32_t angle_lens[num_cycle_phases];
+    uint32_t angle_timestamps[num_cycle_phases];
+    uint32_t angle_last_timestamp, angle_last_processed_timestamp;
 };
 
 // ==== Module functions ====
@@ -74,6 +79,7 @@ struct input_data {
 extern input_data global_input_data[num_inputs];
 
 void extract_data_from_cycle(input_data &d, uint32_t first_pulse_len, uint32_t second_pulse_len, uint32_t id);
+void update_geometry(input_data& d);
 
 
 // ==== Utils ====

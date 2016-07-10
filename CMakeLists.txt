@@ -6,7 +6,7 @@ set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 
 project(lighthouse_teensy)
 
-set(SOURCE_FILES main.cpp setup.cpp data_decoder.cpp)
+set(SOURCE_FILES main.cpp setup.cpp data_decoder.cpp geometry.cpp)
 
 add_executable(lighthouse-teensy "${SOURCE_FILES}")
 
