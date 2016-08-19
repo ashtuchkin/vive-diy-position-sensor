@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <arm_math.h>
 
 const static int num_inputs = 1;
 const static int cycles_buffer_len = 1024;
@@ -80,6 +81,8 @@ extern input_data global_input_data[num_inputs];
 
 void extract_data_from_cycle(input_data &d, uint32_t first_pulse_len, uint32_t second_pulse_len, uint32_t id);
 void update_geometry(input_data& d);
+
+void send_ublox_ned_position(Stream &stream, bool fix_valid, float *pos, float *vel); // all arguments NED, in mm and mm/s
 
 
 // ==== Utils ====
