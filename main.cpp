@@ -3,7 +3,8 @@
 // Comparator-specific data
 input_data global_input_data[num_inputs] = {{
     // rise_start, dac_level, fix_acquired, fix_cycle_offset
-    0, 10, false, 0,
+    // dac_level = 1V = (1.0/3.3*64) = 20
+    0, 20, false, 0,
 
     // crossings, small_pulses, big_pulses, fake_big_pulses
     0, 0, 0, 0,
@@ -29,6 +30,8 @@ void loop() {
     loopCount++;
     curMillis = millis();
     input_data &d = global_input_data[0];
+
+    process_incoming_mavlink_messages();
 
     if (curMillis - prevMillis >= 1000) {
         prevMillis = curMillis;
@@ -105,6 +108,7 @@ void loop() {
     if (curMillis - prevMillis2 >= 34) {  // 33.33ms => 4 cycles
         prevMillis2 = curMillis;
 
+        /*
         // 1. Comparator level dynamic adjustment.
         __disable_irq();
         uint32_t crossings = d.crossings; d.crossings = 0;
@@ -134,6 +138,7 @@ void loop() {
                 changeCmdDacLevel(d, -1);
             }
         }
+        */
 
         // 2. Fix flag & fix_cycle_offset
         if (d.last_cycle_id > 30 && (curMillis - d.last_cycle_time / 1000) < 100) {

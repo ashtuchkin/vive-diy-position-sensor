@@ -79,10 +79,16 @@ struct input_data {
 
 extern input_data global_input_data[num_inputs];
 
+// Geometry
 void extract_data_from_cycle(input_data &d, uint32_t first_pulse_len, uint32_t second_pulse_len, uint32_t id);
 void update_geometry(input_data& d);
 
+// Ublox
 void send_ublox_ned_position(Stream &stream, bool fix_valid, float *pos, float *vel); // all arguments NED, in mm and mm/s
+
+// Mavlink
+void process_incoming_mavlink_messages();
+void send_mavlink_position(const float ned[3]);
 
 
 // ==== Utils ====

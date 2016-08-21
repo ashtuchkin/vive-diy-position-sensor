@@ -11,6 +11,8 @@ set(SOURCE_FILES
         setup.cpp
         data_decoder.cpp
         geometry.cpp
+        mavlink.cpp
+        mavlink_v2
 )
 
 add_executable(lighthouse-teensy "${SOURCE_FILES}")

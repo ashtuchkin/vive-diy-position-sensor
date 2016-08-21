@@ -8,17 +8,39 @@ struct lightsource {
     vec3d origin;
 };
 
+// NE angle = Angle(North - X axis).
+static const float ne_angle = 110.0f / 360.0f * (float)M_PI;
+static float ned_rotation[9] = {
+    // Convert Y up -> Z down; then rotate XY around Z clockwise and inverse X & Y
+    -cosf(ne_angle), 0.0f,  sinf(ne_angle),
+    -sinf(ne_angle), 0.0f, -cosf(ne_angle),
+     0.0f,          -1.0f,            0.0f,
+};
+static arm_matrix_instance_f32 ned_rotation_mat = {3, 3, ned_rotation};
+
 static lightsource lightsources[2] = {{
-    { 0.27049f, -0.49175f, 0.82766f,
-     -0.00982f,  0.85825f, 0.51314f,
-     -0.96267f, -0.14693f, 0.22732f},
-    {1.85689, 2.48381, 0.62419}
+    {  -0.88720f,  0.25875f, -0.38201f,
+       -0.04485f,  0.77566f,  0.62956f,
+        0.45920f,  0.57568f, -0.67656f},
+    {  -1.28658f,  2.32719f, -2.04823f}
 }, {
-    {-0.44084f,  0.47070f, -0.76426f,
-     -0.05869f,  0.83452f,  0.54784f,
-      0.89566f,  0.28637f, -0.34027f},
-    {-2.12202f, 2.20767f, -0.74908f}
+    {   0.52584f, -0.64026f,  0.55996f,
+        0.01984f,  0.66739f,  0.74445f,
+       -0.85035f, -0.38035f,  0.36364f},
+    {   1.69860f,  2.62725f,  0.92969f}
 }};
+
+//static lightsource lightsources[2] = {{
+//    { 0.27049f, -0.49175f, 0.82766f,
+//     -0.00982f,  0.85825f, 0.51314f,
+//     -0.96267f, -0.14693f, 0.22732f},
+//    {1.85689, 2.48381, 0.62419}
+//}, {
+//    {-0.44084f,  0.47070f, -0.76426f,
+//     -0.05869f,  0.83452f,  0.54784f,
+//      0.89566f,  0.28637f, -0.34027f},
+//    {-2.12202f, 2.20767f, -0.74908f}
+//}};
 
 bool intersect_lines(vec3d &orig1, vec3d &vec1, vec3d &orig2, vec3d &vec2, vec3d *res, float *dist);
 void calc_ray_vec(lightsource &ls, float angle1, float angle2, vec3d &res);
@@ -48,7 +70,16 @@ void update_geometry(input_data& d) {
     vec3d pt = {};
     intersect_lines(lightsources[0].origin, ray1, lightsources[1].origin, ray2, &pt, &dist);
 
-    Serial.printf("Position: %.3f %.3f %.3f ; dist= %.3f\n", pt[0], pt[1], pt[2], dist);
+    digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
+
+    // Convert to NED.
+    vec3d ned = {};
+    arm_matrix_instance_f32 pt_mat = {3, 1, pt};
+    arm_matrix_instance_f32 ned_mat = {3, 1, ned};
+    arm_mat_mult_f32(&ned_rotation_mat, &pt_mat, &ned_mat);
+
+    Serial.printf("Position: %.3f %.3f %.3f ; dist= %.3f\n", ned[0], ned[1], ned[2], dist);
+    send_mavlink_position(ned);
 }
 
 void vec_cross_product(const vec3d &a, const vec3d &b, vec3d &res) {

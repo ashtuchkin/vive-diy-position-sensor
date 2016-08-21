@@ -32,6 +32,7 @@ void setupComparator() {
 
 void setup() {
     Serial.begin(9600);
+    Serial1.begin(57600);
     pinMode(LED_BUILTIN, OUTPUT);
 
     setupComparator();
