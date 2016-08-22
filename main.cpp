@@ -190,15 +190,33 @@ void loop() {
 
         // 3. Read current angles and calculate geometry
         if (d.fix_acquired && d.angle_last_timestamp > d.angle_last_processed_timestamp) {
-            bool can_update_geometry = true;
-            for (int i = 0; i < num_cycle_phases && can_update_geometry; i++)
+            bool have_valid_input_point = true;
+            for (int i = 0; i < num_cycle_phases && have_valid_input_point; i++)
                 if (d.angle_timestamps[i]/1000 < curMillis - 100)
-                    can_update_geometry = false;
+                    have_valid_input_point = false;
 
-            if (can_update_geometry) {
-                update_geometry(d);
+            if (have_valid_input_point) {
 
-                d.angle_last_processed_timestamp = d.angle_last_timestamp;
+                // Convert timing to 3d coordinates in NED frame.
+                float ned[3], dist;
+                calculate_3d_point(d, &ned, &dist);
+
+                digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
+                Serial.printf("Position: %.3f %.3f %.3f ; dist= %.3f\n", ned[0], ned[1], ned[2], dist);
+                
+                if (d.angle_last_timestamp - d.angle_last_processed_timestamp > 500000 ||
+                       (fabsf(ned[0] - d.last_ned[0]) < max_position_jump &&
+                        fabsf(ned[1] - d.last_ned[1]) < max_position_jump &&
+                        fabsf(ned[2] - d.last_ned[2]) < max_position_jump)) {
+
+                    // Point is valid; Send position.
+                    send_mavlink_position(ned);
+                    for (int i = 0; i < 3; i++)
+                        d.last_ned[i] = ned[i];
+                    d.angle_last_processed_timestamp = d.angle_last_timestamp;
+                } else {
+                    Serial.printf("Invalid position: too far from previous one");
+                }
             }
         }
     }

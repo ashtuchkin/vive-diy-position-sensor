@@ -16,6 +16,7 @@ const static int num_cycle_phases = 4;
 const static int decoded_data_max_len = 50;
 const static int num_data_frames = 10;
 
+const static float max_position_jump = 0.05; // meters
 
 struct bit_decoder {
     int center_pulse_len; // uS
@@ -73,15 +74,19 @@ struct input_data {
     uint32_t angle_lens[num_cycle_phases];
     uint32_t angle_timestamps[num_cycle_phases];
     uint32_t angle_last_timestamp, angle_last_processed_timestamp;
+
+    float last_ned[3];
 };
 
 // ==== Module functions ====
 
 extern input_data global_input_data[num_inputs];
 
-// Geometry
+// Data decoder
 void extract_data_from_cycle(input_data &d, uint32_t first_pulse_len, uint32_t second_pulse_len, uint32_t id);
-void update_geometry(input_data& d);
+
+// Geometry
+void calculate_3d_point(input_data& d, float (*ned)[3], float *dist);
 
 // Ublox
 void send_ublox_ned_position(Stream &stream, bool fix_valid, float *pos, float *vel); // all arguments NED, in mm and mm/s

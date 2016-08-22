@@ -46,7 +46,7 @@ bool intersect_lines(vec3d &orig1, vec3d &vec1, vec3d &orig2, vec3d &vec2, vec3d
 void calc_ray_vec(lightsource &ls, float angle1, float angle2, vec3d &res);
 
 
-void update_geometry(input_data& d) {
+void calculate_3d_point(input_data& d, float (*ned)[3], float *dist) {
     // First 2 angles - x, y of station B; second 2 angles - x, y of station C.  Center is 4000. 180 deg = 8333.
     // Y - Up;  X ->   Z v
     // Station ray is inverse Z axis.
@@ -66,20 +66,13 @@ void update_geometry(input_data& d) {
     calc_ray_vec(lightsources[1], angles[2], angles[3], ray2);
     //Serial.printf("Ray2: %f %f %f\n", ray2[0], ray2[1], ray2[2]);
 
-    float dist;
     vec3d pt = {};
-    intersect_lines(lightsources[0].origin, ray1, lightsources[1].origin, ray2, &pt, &dist);
-
-    digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
+    intersect_lines(lightsources[0].origin, ray1, lightsources[1].origin, ray2, &pt, dist);
 
     // Convert to NED.
-    vec3d ned = {};
     arm_matrix_instance_f32 pt_mat = {3, 1, pt};
-    arm_matrix_instance_f32 ned_mat = {3, 1, ned};
+    arm_matrix_instance_f32 ned_mat = {3, 1, *ned};
     arm_mat_mult_f32(&ned_rotation_mat, &pt_mat, &ned_mat);
-
-    Serial.printf("Position: %.3f %.3f %.3f ; dist= %.3f\n", ned[0], ned[1], ned[2], dist);
-    send_mavlink_position(ned);
 }
 
 void vec_cross_product(const vec3d &a, const vec3d &b, vec3d &res) {
