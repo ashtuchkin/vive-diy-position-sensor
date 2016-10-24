@@ -23,7 +23,8 @@ set(CMAKE_RANLIB       "${TOOLCHAIN_PREFIX}ranlib" CACHE PATH "ranlib" FORCE)
 
 # Teensy 3.1 settings
 
-set(TEENSY_ROOT "${CMAKE_SOURCE_DIR}/libs/teensy3" CACHE PATH "Path to the Teensy 'cores/teensy3' repository")
+set(TEENSY_ROOT "${CMAKE_SOURCE_DIR}/libs/cores/teensy3" CACHE PATH "Path to the Teensy 'cores/teensy3' repository")
+set(CMSIS_ROOT "${CMAKE_SOURCE_DIR}/libs/CMSIS/CMSIS" CACHE PATH "Path to the CMSIS root directory")
 
 # /Users/<username>/Documents/Arduino/libraries
 # /Applications/Arduino.app/Contents/Java/libraries
@@ -44,9 +45,6 @@ set(TARGET_FLAGS "-mcpu=cortex-m4 -mthumb -mfp16-format=ieee")
 set(OPTIMIZE_FLAGS "-O2" CACHE STRING "Optimization flags")  # Remember to reset cache and rebuild cmake when changing this.
 set(CMAKE_C_FLAGS "${OPTIMIZE_FLAGS} -Wall -nostdlib -ffunction-sections -fdata-sections ${TARGET_FLAGS}" CACHE STRING "C/C++ flags")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -fno-rtti -felide-constructors -std=gnu++0x -fsingle-precision-constant" CACHE STRING "c++ flags")
-
-# TODO: https://github.com/ARM-software/CMSIS
-# link_libraries(arm_cortexM4l_math)
 
 link_libraries(m)
 set(LINKER_FLAGS "--gc-sections,--relax,--defsym=__rtc_localtime=0" CACHE STRING "Ld flags")
@@ -77,14 +75,11 @@ set(TY_EXECUTABLE "/usr/local/bin/tyc" CACHE FILEPATH "Path to the 'tyc' executa
 # for the actual source (not sample programs).
 if (NOT TARGET TeensyCore AND NOT ${CMAKE_SOURCE_DIR} MATCHES "CMakeTmp")
     file(GLOB TEENSY_C_CORE_FILES "${TEENSY_ROOT}/*.c")
+    list(REMOVE_ITEM TEENSY_C_CORE_FILES "${TEENSY_ROOT}/math_helper.c")  # legacy cmsis file - not needed anyway.
     file(GLOB TEENSY_CXX_CORE_FILES "${TEENSY_ROOT}/*.cpp")
     add_library(TeensyCore ${TEENSY_C_CORE_FILES} ${TEENSY_CXX_CORE_FILES})
     link_libraries(TeensyCore)
     include_directories(${TEENSY_ROOT})
-
-    # Add CMSIS DSP library
-    link_directories(${TEENSY_ROOT})
-    link_libraries(arm_cortexM4l_math)
 endif (NOT TARGET TeensyCore AND NOT ${CMAKE_SOURCE_DIR} MATCHES "CMakeTmp")
 
 
@@ -111,6 +106,12 @@ function(add_firmware_targets TARGET_NAME)
     endif(EXISTS "${TY_EXECUTABLE}")
 endfunction(add_firmware_targets)
 
+
+function(import_cmsis_dsp_library TARGET_NAME)
+    target_include_directories(${TARGET_NAME} BEFORE PRIVATE "${CMSIS_ROOT}/Include")  # Make it a priority over old-version arm_math.h in teensy.
+    target_link_libraries(${TARGET_NAME} ${CMSIS_ROOT}/Lib/GCC/libarm_cortexM4l_math.a)
+    target_compile_definitions(${TARGET_NAME} PRIVATE -DARM_MATH_CM4)
+endfunction(import_cmsis_dsp_library)
 
 function(import_arduino_library TARGET_NAME LIB_NAME)
     # Check if we can find the library.

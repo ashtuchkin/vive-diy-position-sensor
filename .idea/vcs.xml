@@ -2,6 +2,9 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/mavlink_v2" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/libs/ADC" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/libs/CMSIS" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/libs/cores" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/libs/mavlink_v2" vcs="Git" />
   </component>
 </project>

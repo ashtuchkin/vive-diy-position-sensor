@@ -4,76 +4,83 @@
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/geometry.cpp" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/setup.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/mavlink_v2" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/main.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_serial.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/math_helper.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/avr_emulation.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/eeprom.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/WMath.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/avr_emulation.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/touch.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/DMAChannel.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/main.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_flightsim.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_mtp.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_keyboard.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_mtp.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/keylayouts.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/AudioStream.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/keylayouts.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_dev.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_midi.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/Stream.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_dev.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_midi.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/Tone.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/mk20dx128.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/AudioStream.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_mem.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/Stream.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/mk20dx128.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/WString.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/WString.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_mem.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/new.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/IPAddress.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_audio.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/new.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/analog.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_inst.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/IPAddress.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/Print.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/DMAChannel.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/serial1.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_serial.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/ser_print.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_mouse.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_mouse.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/Print.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_joystick.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/IntervalTimer.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/nonstd.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_joystick.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_rawhid.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/HardwareSerial1.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_rawhid.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_seremu.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/HardwareSerial3.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/serial3.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_keyboard.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_seremu.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_audio.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/IntervalTimer.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_flightsim.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/yield.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/pins_teensy.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_desc.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/serial2.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/usb_desc.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/HardwareSerial2.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/math_helper.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/libs/teensy3/ser_print.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/mavlink_v2" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_seremu.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/HardwareSerial3.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/avr_emulation.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/eeprom.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/avr_emulation.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/serial6.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/serial5.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/DMAChannel.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_touch.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_flightsim.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_mtp.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/touch.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_keyboard.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_dev.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/keylayouts.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_serial.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/AudioStream.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/keylayouts.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_dev.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_midi.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/Stream.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/WMath.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_midi.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/Tone.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/mk20dx128.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/AudioStream.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_mem.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/Print.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/mk20dx128.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/WString.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/WString.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_mem.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/new.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_touch.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/HardwareSerial4.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/IPAddress.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_audio.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/new.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/analog.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_inst.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/IPAddress.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/ser_print.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/DMAChannel.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/serial1.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_serial.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/ser_print.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_mouse.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/HardwareSerial5.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_mouse.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/Print.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_joystick.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/IntervalTimer.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/serial2.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_joystick.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_rawhid.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/HardwareSerial1.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_rawhid.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/serial6_lpuart.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_seremu.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_flightsim.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/serial3.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_keyboard.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/main.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_audio.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/IntervalTimer.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/HardwareSerial6.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/yield.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/pins_teensy.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_desc.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/nonstd.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/serial4.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_desc.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/HardwareSerial2.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/Stream.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/libs/cores/teensy3/usb_mtp.c" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/mavlink.cpp" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/teensy-arm.toolchain.cmake" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/CMakeLists.txt" isTestSource="false" />
@@ -84,14 +91,14 @@
     <orderEntry type="module-library">
       <library name="Header Search Paths">
         <CLASSES>
-          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/lib/gcc/arm-none-eabi/5.4.1/include-fixed" />
-          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/lib/gcc/arm-none-eabi/5.4.1/include" />
           <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/arm-none-eabi/include" />
+          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/lib/gcc/arm-none-eabi/5.4.1/include" />
+          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/lib/gcc/arm-none-eabi/5.4.1/include-fixed" />
         </CLASSES>
         <SOURCES>
-          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/lib/gcc/arm-none-eabi/5.4.1/include-fixed" />
-          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/lib/gcc/arm-none-eabi/5.4.1/include" />
           <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/arm-none-eabi/include" />
+          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/lib/gcc/arm-none-eabi/5.4.1/include" />
+          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/lib/gcc/arm-none-eabi/5.4.1/include-fixed" />
         </SOURCES>
       </library>
     </orderEntry>

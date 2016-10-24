@@ -3,7 +3,7 @@
 #define MAVLINK_COMM_NUM_BUFFERS 1
 #define MAVLINK_SEND_UART_BYTES mavlink_send_uart_bytes
 
-#include "mavlink_v2/mavlink_types.h"
+#include <mavlink_types.h>
 
 // Communication settings of this system. Two random numbers.
 mavlink_system_t mavlink_system = {
@@ -13,15 +13,16 @@ mavlink_system_t mavlink_system = {
 
 void mavlink_send_uart_bytes(mavlink_channel_t chan, const uint8_t *chars, unsigned length);
 
-#include "mavlink_v2/common/mavlink.h"
+#include <common/mavlink.h>
 
 // TODO: Add messages in increasing msg_id order.
+/*
 #define MAVLINK_USE_MESSAGE_INFO
 #undef MAVLINK_MESSAGE_INFO
 #define MAVLINK_MESSAGE_INFO {MAVLINK_MESSAGE_INFO_HEARTBEAT, MAVLINK_MESSAGE_INFO_SYS_STATUS, MAVLINK_MESSAGE_INFO_SYSTEM_TIME, MAVLINK_MESSAGE_INFO_ATTITUDE, MAVLINK_MESSAGE_INFO_SERVO_OUTPUT_RAW, MAVLINK_MESSAGE_INFO_VFR_HUD, MAVLINK_MESSAGE_INFO_ATTITUDE_TARGET, MAVLINK_MESSAGE_INFO_HIGHRES_IMU, MAVLINK_MESSAGE_INFO_BATTERY_STATUS, MAVLINK_MESSAGE_INFO_EXTENDED_SYS_STATE}
 #undef _MAVLINK_GET_INFO_H_
-#include "mavlink_v2/mavlink_get_info.h"
-
+#include <mavlink_get_info.h>
+*/
 #include "main.h"
 
 static HardwareSerial &MavlinkSerial = Serial1;
@@ -30,7 +31,7 @@ static HardwareSerial &MavlinkSerial = Serial1;
 void mavlink_send_uart_bytes(mavlink_channel_t chan, const uint8_t *chars, unsigned length) {
     MavlinkSerial.write(chars, length);
 }
-
+/*
 void print_mavlink_message(const mavlink_message_t &msg, Stream &dest) {
     dest.printf("> %u|%u: ", (unsigned)msg.sysid, (unsigned)msg.compid);
 
@@ -67,7 +68,7 @@ void print_mavlink_message(const mavlink_message_t &msg, Stream &dest) {
     }
     dest.println();
 }
-
+*/
 void handle_mavlink_message(const mavlink_message_t &message) {
 //    switch (message.msgid) {
 //        case MAVLINK_MSG_ID_ATT_POS_MOCAP: break;

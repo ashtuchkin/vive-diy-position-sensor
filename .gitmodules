@@ -1,3 +1,12 @@
-[submodule "mavlink_v2"]
-	path = mavlink_v2
-	url = git@github.com:mavlink/c_library_v2.git
+[submodule "libs/ADC"]
+	path = libs/ADC
+	url = https://github.com/pedvide/ADC.git
+[submodule "libs/cores"]
+	path = libs/cores
+	url = https://github.com/PaulStoffregen/cores.git
+[submodule "libs/CMSIS"]
+	path = libs/CMSIS
+	url = https://github.com/ARM-software/CMSIS.git
+[submodule "libs/mavlink_v2"]
+	path = libs/mavlink_v2
+	url = https://github.com/mavlink/c_library_v2.git

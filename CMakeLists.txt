@@ -12,10 +12,11 @@ set(SOURCE_FILES
         data_decoder.cpp
         geometry.cpp
         mavlink.cpp
-        mavlink_v2
 )
 
 add_executable(lighthouse-teensy "${SOURCE_FILES}")
-
 add_firmware_targets(lighthouse-teensy)
+
+import_cmsis_dsp_library(lighthouse-teensy)
+import_arduino_library(lighthouse-teensy mavlink_v2)
 # import_arduino_library(lighthouse-teensy ADC)
