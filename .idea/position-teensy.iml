@@ -84,14 +84,14 @@
     <orderEntry type="module-library">
       <library name="Header Search Paths">
         <CLASSES>
-          <root url="file:///opt/homebrew-cask/Caskroom/gcc-arm-embedded/5_2-2015q4,20151219/gcc-arm-none-eabi-5_2-2015q4/lib/gcc/arm-none-eabi/5.2.1/include" />
-          <root url="file:///opt/homebrew-cask/Caskroom/gcc-arm-embedded/5_2-2015q4,20151219/gcc-arm-none-eabi-5_2-2015q4/lib/gcc/arm-none-eabi/5.2.1/include-fixed" />
-          <root url="file:///opt/homebrew-cask/Caskroom/gcc-arm-embedded/5_2-2015q4,20151219/gcc-arm-none-eabi-5_2-2015q4/arm-none-eabi/include" />
+          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/lib/gcc/arm-none-eabi/5.4.1/include-fixed" />
+          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/lib/gcc/arm-none-eabi/5.4.1/include" />
+          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/arm-none-eabi/include" />
         </CLASSES>
         <SOURCES>
-          <root url="file:///opt/homebrew-cask/Caskroom/gcc-arm-embedded/5_2-2015q4,20151219/gcc-arm-none-eabi-5_2-2015q4/lib/gcc/arm-none-eabi/5.2.1/include" />
-          <root url="file:///opt/homebrew-cask/Caskroom/gcc-arm-embedded/5_2-2015q4,20151219/gcc-arm-none-eabi-5_2-2015q4/lib/gcc/arm-none-eabi/5.2.1/include-fixed" />
-          <root url="file:///opt/homebrew-cask/Caskroom/gcc-arm-embedded/5_2-2015q4,20151219/gcc-arm-none-eabi-5_2-2015q4/arm-none-eabi/include" />
+          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/lib/gcc/arm-none-eabi/5.4.1/include-fixed" />
+          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/lib/gcc/arm-none-eabi/5.4.1/include" />
+          <root url="file:///usr/local/Caskroom/gcc-arm-embedded/5_4-2016q2,20160622/gcc-arm-none-eabi-5_4-2016q2/arm-none-eabi/include" />
         </SOURCES>
       </library>
     </orderEntry>
