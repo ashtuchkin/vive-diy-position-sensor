@@ -1,5 +1,7 @@
-#include <Arduino.h>
+// Unfortunately, CMSIS and Arduino.h (kinetis.h) are conflicting on __enable_irq/__disable_irq, so we must
+// include arm_math.h first.
 #include <arm_math.h>
+#include <Arduino.h>
 
 const static int num_inputs = 1;
 const static int cycles_buffer_len = 1024;
