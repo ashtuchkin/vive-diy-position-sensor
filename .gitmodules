@@ -10,4 +10,4 @@
 [submodule "libs/cores"]
 	path = libs/cores
 	url = https://github.com/ashtuchkin/cores.git
-	branch = fix-random
+	branch = my-fixes
