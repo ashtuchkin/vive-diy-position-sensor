@@ -1,9 +1,6 @@
 [submodule "libs/ADC"]
 	path = libs/ADC
 	url = https://github.com/pedvide/ADC.git
-[submodule "libs/cores"]
-	path = libs/cores
-	url = https://github.com/PaulStoffregen/cores.git
 [submodule "libs/CMSIS"]
 	path = libs/CMSIS
 	url = https://github.com/ARM-software/CMSIS.git
