@@ -1,7 +1,5 @@
-# Out-of-source build
-build
 
-# CLion/Idea:
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/dictionaries
+# CLion/Idea files:
+**/.idea/workspace.xml
+**/.idea/tasks.xml
+**/.idea/dictionaries

@@ -18,6 +18,7 @@ static float ned_rotation[9] = {
 };
 static arm_matrix_instance_f32 ned_rotation_mat = {3, 3, ned_rotation};
 
+// Lighthouse sources rotation matrix & 3d-position
 static lightsource lightsources[2] = {{
     {  -0.88720f,  0.25875f, -0.38201f,
        -0.04485f,  0.77566f,  0.62956f,
@@ -29,18 +30,6 @@ static lightsource lightsources[2] = {{
        -0.85035f, -0.38035f,  0.36364f},
     {   1.69860f,  2.62725f,  0.92969f}
 }};
-
-//static lightsource lightsources[2] = {{
-//    { 0.27049f, -0.49175f, 0.82766f,
-//     -0.00982f,  0.85825f, 0.51314f,
-//     -0.96267f, -0.14693f, 0.22732f},
-//    {1.85689, 2.48381, 0.62419}
-//}, {
-//    {-0.44084f,  0.47070f, -0.76426f,
-//     -0.05869f,  0.83452f,  0.54784f,
-//      0.89566f,  0.28637f, -0.34027f},
-//    {-2.12202f, 2.20767f, -0.74908f}
-//}};
 
 bool intersect_lines(vec3d &orig1, vec3d &vec1, vec3d &orig2, vec3d &vec2, vec3d *res, float *dist);
 void calc_ray_vec(lightsource &ls, float angle1, float angle2, vec3d &res);

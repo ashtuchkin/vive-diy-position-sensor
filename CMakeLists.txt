@@ -4,7 +4,7 @@ set(CMAKE_TOOLCHAIN_FILE "teensy-arm.toolchain.cmake")
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 #set(CMAKE_VERBOSE_MAKEFILE TRUE)
 
-project(lighthouse_teensy)
+project(vive_sensor_teensy)
 
 set(SOURCE_FILES
         main.cpp
@@ -14,9 +14,8 @@ set(SOURCE_FILES
         mavlink.cpp
 )
 
-add_executable(lighthouse-teensy "${SOURCE_FILES}")
-add_firmware_targets(lighthouse-teensy)
+add_executable(vive-sensor-teensy "${SOURCE_FILES}")
+add_firmware_targets(vive-sensor-teensy)
 
-import_cmsis_dsp_library(lighthouse-teensy)
-import_arduino_library(lighthouse-teensy mavlink_v2)
-# import_arduino_library(lighthouse-teensy ADC)
+import_cmsis_dsp_library(vive-sensor-teensy)
+import_arduino_library(vive-sensor-teensy mavlink_v2)

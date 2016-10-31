@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/position-teensy.iml" filepath="$PROJECT_DIR$/.idea/position-teensy.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/vive-sensor-teensy.iml" filepath="$PROJECT_DIR$/.idea/vive-sensor-teensy.iml" />
     </modules>
   </component>
 </project>
