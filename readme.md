@@ -1,24 +1,35 @@
+# HTC Vive Position Sensor using Teensy.
 
 
-# HTC Vive Lighthouse receiver for Teensy.
 
-Uploader: tyc
-Use build instructions in it's repo:
-https://github.com/Koromix/ty
+## Installation instructions
 
--------------------------------------------
-TODO:
- * Fix incompatibility of teensy3 with gnu-arm-embedded (ambiguating new declaration of 'uint32_t random()')
-   * Have a pull request: https://github.com/PaulStoffregen/cores/pull/187
-   * Also warning: https://github.com/PaulStoffregen/cores/pull/187
- * Fix dtostrf -> fcvtf warning
- * Find a good name for the project & change the cmake file
- * Write instructions for cmake
- * Support cmake inline build with .gitignore and explicit /bin directory.
+Prerequisites:
+ * gcc-arm-embedded toolchain. Can be installed on Mac with `brew cask install gcc-arm-embedded`.
+   I'm developing with version 5_4-2016q3, but other versions should work too.
+ * CMake 3.5+ `brew install cmake`
+ * Command line uploader/monitor: [ty](https://github.com/Koromix/ty). See build instructions in the repo.
+ * I recommend CLion as the IDE - it made my life a lot easier.
 
-
-Update submodules to latest on branches/tags:
+Getting the code:
+```bash
+$ git clone https://github.com/ashtuchkin/vive-sensor-teensy.git
+$ cd vive-sensor-teensy
+$ git submodule update --init
 ```
-git submodule update --remote
+
+Compilation/upload (example, using CMake out-of-source build in build/ directory):
+```bash
+$ cd build
+$ cmake ..
+$ make  # Build firmware
+$ make vive-sensor-teensy_Upload  # Upload to Teensy
+$ tyc monitor  # Serial console to Teensy
 ```
-When changing .gitmodules, don't forget to do `git submodule sync`
+
+
+
+
+## Internal notes
+ * Update submodules to latest on branches/tags: `git submodule update --remote`
+ * When changing .gitmodules, do `git submodule sync`
