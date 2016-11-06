@@ -1,11 +1,11 @@
-# Position Sensor using HTC Vive's Lighthouse and Teensy
- * 3d position accuracy: < 2 mm (std dev)
+# DIY Position Tracking using HTC Vive's Lighthouse and Teensy
+ * 3d position accuracy: ~ 2 mm (std dev)
  * Update frequency: 30 Hz
  * Output formats: Text; Mavlink ATT_POS_MOCAP via serial; Ublox GPS emulation (in works)
  * Station visibility requirements: full top hemisphere from sensor. Both stations need to be visible.
  * Positioning volume: same as HTC Vive, approx up to 4x4x3 meters.
  * Cost: ~$10 + [Teensy 3.2 ($20)](https://www.pjrc.com/store/teensy32.html) (+ [Lighthouse stations (2x $135)](http://www.vive.com/us/accessory/base-station/))
- * Skills to build: Low complexity soldering; Embedded C++ (at least compilation).
+ * Skills to build: Low complexity soldering; Embedded C++ recommended for integration to your project.
  * License: MIT
 
 | ![image](https://cloud.githubusercontent.com/assets/627997/19845384/a4fce0e4-9ef3-11e6-95e4-6567ff374ee0.png) | ![image](https://cloud.githubusercontent.com/assets/627997/19846322/79e76980-9efb-11e6-932e-7730e75dc5f1.png) |
@@ -17,7 +17,7 @@
 
 
 ### Schematics
-![schematics](https://ashtuchkin.github.io/vive-sensor-teensy/sensor-schematics.svg)
+![schematics](https://ashtuchkin.github.io/vive-diy-position-sensor/sensor-schematics.svg)
 
 
 ## Software (Teensy)
@@ -33,8 +33,8 @@ Prerequisites:
 
 Getting the code:
 ```bash
-$ git clone https://github.com/ashtuchkin/vive-sensor-teensy.git
-$ cd vive-sensor-teensy
+$ git clone https://github.com/ashtuchkin/vive-diy-position-sensor.git
+$ cd vive-diy-position-sensor
 $ git submodule update --init
 ```
 
@@ -43,7 +43,7 @@ Compilation/upload command line (example, using CMake out-of-source build in bui
 $ cd build
 $ cmake ..
 $ make  # Build firmware
-$ make vive-sensor-teensy_Upload  # Upload to Teensy
+$ make vive-diy-position-sensor_Upload  # Upload to Teensy
 $ tyc monitor  # Serial console to Teensy
 ```
 

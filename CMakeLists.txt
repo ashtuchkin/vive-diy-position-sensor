@@ -4,7 +4,7 @@ set(CMAKE_TOOLCHAIN_FILE "teensy-arm.toolchain.cmake")
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 #set(CMAKE_VERBOSE_MAKEFILE TRUE)
 
-project(vive_sensor_teensy)
+project(vive-diy-position-sensor)
 
 set(SOURCE_FILES
         main.cpp
@@ -14,8 +14,8 @@ set(SOURCE_FILES
         mavlink.cpp
 )
 
-add_executable(vive-sensor-teensy "${SOURCE_FILES}")
-add_firmware_targets(vive-sensor-teensy)
+add_executable(vive-diy-position-sensor "${SOURCE_FILES}")
+add_firmware_targets(vive-diy-position-sensor)
 
-import_cmsis_dsp_library(vive-sensor-teensy)
-import_arduino_library(vive-sensor-teensy mavlink_v2)
+import_cmsis_dsp_library(vive-diy-position-sensor)
+import_arduino_library(vive-diy-position-sensor mavlink_v2)
