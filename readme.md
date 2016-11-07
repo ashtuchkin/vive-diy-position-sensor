@@ -1,4 +1,5 @@
-# DIY Position Tracking using HTC Vive's Lighthouse and Teensy
+# DIY Position Tracking using HTC Vive's Lighthouse
+ * General purpose indoor positioning sensor, good for robots, drones, etc.
  * 3d position accuracy: ~ 2 mm (std dev)
  * Update frequency: 30 Hz
  * Output formats: Text; Mavlink ATT_POS_MOCAP via serial; Ublox GPS emulation (in works)
@@ -10,8 +11,52 @@
 
 | ![image](https://cloud.githubusercontent.com/assets/627997/19845384/a4fce0e4-9ef3-11e6-95e4-6567ff374ee0.png) | ![image](https://cloud.githubusercontent.com/assets/627997/19846322/79e76980-9efb-11e6-932e-7730e75dc5f1.png) |
 | --- | --- |
-| Demo showing raw XYZ position: [![image](https://cloud.githubusercontent.com/assets/627997/19845646/efc3cb18-9ef5-11e6-9902-58fe30e68a12.png)](https://www.youtube.com/watch?v=Xzuns5UYP8M) | Sensor usage to stabilize drone: [![image](https://cloud.githubusercontent.com/assets/627997/19845426/06c64bb2-9ef4-11e6-8d2b-1bbfbc5ec368.png)](https://www.youtube.com/watch?v=7GgB5qnx6_s) |
+| Demo showing raw XYZ position: [![image](https://cloud.githubusercontent.com/assets/627997/19845646/efc3cb18-9ef5-11e6-9902-58fe30e68a12.png)](https://www.youtube.com/watch?v=Xzuns5UYP8M) | Indoor hold position for a drone: [![image](https://cloud.githubusercontent.com/assets/627997/19845426/06c64bb2-9ef4-11e6-8d2b-1bbfbc5ec368.png)](https://www.youtube.com/watch?v=7GgB5qnx6_s) |
 
+<!--
+## Rationale
+HTC Vive's Lighthouse is an amazing piece of technology that enables room-scale VR with precise 3D positioning.
+-->
+
+## How it works
+Lighthouse system consists of 2 passive infrared-emitting base stations and an independent IR sensor/processing module.
+This allows us to use existing HTC Vive setup and just create a sensor to get the position needed.
+
+The base stations are usually placed high in the room corners and "overlook" the room. Each station has an IR LED array and
+two rotating laser planes, horizontal and vertical. Each cycle, after LED array flash (sync pulse), laser planes sweep the room
+horizontally/vertically with constant rotation speed, so the time between LED array flash and laser plane
+touching the sensor is proportional to horizontal/vertical angle from base station's center direction. From this, we can
+derive a 3d line from each base station to sensor, the crossing of which yields 3d coordinates of our sensor.
+Great thing about this approach is that it doesn't depend on light intensity and can be made very precise with cheap hardware.
+
+<pic with sweeps>
+
+See also:
+ * [This Is How Valve’s Amazing Lighthouse Tracking Technology Works – Gizmodo](http://gizmodo.com/this-is-how-valve-s-amazing-lighthouse-tracking-technol-1705356768)
+ * [Lighthouse tracking examined – Oliver Kreylos' blog](http://doc-ok.org/?p=1478)
+ * [Laser planes visualization video – rvdm88](https://www.youtube.com/watch?v=oqPaaMR4kY4)
+
+The sensor we're building is the receiving side of the Lighthouse. It will receive, recognize the IR pulses, calculate
+the angles and produce 3d coordinates.
+
+## How it works – details
+Base stations are synchronized and work in tandem (they see each other). Each cycle only one laser plane sweeps the room,
+so we fully update 3d position every 4 cycles (2 stations * horizontal/vertical sweep). Cycles are 8.333ms long, which is
+exactly 120Hz. Laser plane rotation speed is exactly 180deg per cycle.
+
+Each cycle, as received by sensor, has the following pulse structure:
+| Pulse start, µs | Pulse length, µs | Source station | Meaning |
+| --------: | ---------: | -------------: | :------ |
+|         0 |     65–135 |              A | Sync pulse (LED array, omnidirectional) |
+|       400 |     65-135 |              B | Sync pulse (LED array, omnidirectional) |
+| 1222–6777 |        ~10 |         A or B | Laser plane sweep pulse (center=4000µs) |
+|      8333 |            |                | End of cycle |
+
+It looks like this:
+[![Lighthouse pulse structure](https://cloud.githubusercontent.com/assets/627997/20043378/32739902-a441-11e6-96d4-c18f27c56205.png)](https://youtu.be/7OFeN3gl3SQ)
+
+The sync pulse length encodes which of the 4 cycles we're receiving and station id/calibration data
+(see [description](https://github.com/nairol/LighthouseRedox/blob/master/docs/Light%20Emissions.md)).
 
 ## Hardware
 
