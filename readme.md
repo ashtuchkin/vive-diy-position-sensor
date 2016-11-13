@@ -131,7 +131,7 @@ calculate the 3d lines and 3d position (see geometry.cpp). After position is det
 as Mavlink ATT_POS_MOCAP message to UART port (see mavlink.cpp).
  
 NOTE: Currently, base station positions and direction matrices are hardcoded in geometry.cpp (`lightsources`). You'll need to 
-adjust it for your setup. See #2.
+adjust it for your setup. See [#2](//github.com/ashtuchkin/vive-diy-position-sensor/issues/2).
 
 ### Installation instructions
 
