@@ -1,9 +1,9 @@
 # DIY Position Tracking using HTC Vive's Lighthouse
  * General purpose indoor positioning sensor, good for robots, drones, etc.
- * 3d position accuracy: ~ 2 mm (std dev)
+ * 3d position accuracy: < 2 mm
  * Update frequency: 30 Hz
  * Output formats: Text; Mavlink ATT_POS_MOCAP via serial; Ublox GPS emulation (in works)
- * Station visibility requirements: full top hemisphere from sensor. Both stations need to be visible.
+ * HTC Vive Station visibility requirements: full top hemisphere from sensor. Both stations need to be visible.
  * Positioning volume: same as HTC Vive, approx up to 4x4x3 meters.
  * Cost: ~$10 + [Teensy 3.2 ($20)](https://www.pjrc.com/store/teensy32.html) (+ [Lighthouse stations (2x $135)](http://www.vive.com/us/accessory/base-station/))
  * Skills to build: Low complexity soldering; Embedded C++ recommended for integration to your project.
@@ -19,32 +19,36 @@ HTC Vive's Lighthouse is an amazing piece of technology that enables room-scale 
 -->
 
 ## How it works
-Lighthouse system consists of 2 passive infrared-emitting base stations and an independent IR sensor/processing module.
-This allows us to use existing HTC Vive setup and just create a sensor to get the position needed.
+Lighthouse position tracking system consists of:
+ * two stationary infrared-emitting base stations (we'll use existing HTC Vive setup),
+ * IR receiving sensor and processing module (this is what we'll create).
 
-The base stations are usually placed high in the room corners and "overlook" the room. Each station has an IR LED array and
-two rotating laser planes, horizontal and vertical. Each cycle, after LED array flash (sync pulse), laser planes sweep the room
-horizontally/vertically with constant rotation speed, so the time between LED array flash and laser plane
-touching the sensor is proportional to horizontal/vertical angle from base station's center direction. From this, we can
-derive a 3d line from each base station to sensor, the crossing of which yields 3d coordinates of our sensor.
+The base stations are usually placed high in the room corners and "overlook" the room.
+Each station has an IR LED array and two rotating laser planes, horizontal and vertical.
+Each cycle, after LED array flash (sync pulse), laser planes sweep the room horizontally/vertically with constant rotation speed.
+This means that the time between the sync pulse and the laser plane "touching" sensor is proportional to horizontal/vertical angle
+from base station's center direction to sensor.
+Using the timing information, we can calculate 3d lines from each base station to sensor, the crossing of which yields
+3d coordinates of our sensor.
 Great thing about this approach is that it doesn't depend on light intensity and can be made very precise with cheap hardware.
 
-<pic with sweeps>
+Visualization of one base station (by rvdm88, click for full video):
+[![How it works](http://i.giphy.com/ijMzXRF3OYBZ6.gif)](https://www.youtube.com/watch?v=oqPaaMR4kY4)
 
 See also:
- * [This Is How Valve’s Amazing Lighthouse Tracking Technology Works – Gizmodo](http://gizmodo.com/this-is-how-valve-s-amazing-lighthouse-tracking-technol-1705356768)
- * [Lighthouse tracking examined – Oliver Kreylos' blog](http://doc-ok.org/?p=1478)
- * [Laser planes visualization video – rvdm88](https://www.youtube.com/watch?v=oqPaaMR4kY4)
+[This Is How Valve’s Amazing Lighthouse Tracking Technology Works – Gizmodo](http://gizmodo.com/this-is-how-valve-s-amazing-lighthouse-tracking-technol-1705356768)
+[Lighthouse tracking examined – Oliver Kreylos' blog](http://doc-ok.org/?p=1478)
 
 The sensor we're building is the receiving side of the Lighthouse. It will receive, recognize the IR pulses, calculate
 the angles and produce 3d coordinates.
 
 ## How it works – details
-Base stations are synchronized and work in tandem (they see each other). Each cycle only one laser plane sweeps the room,
+Base stations are synchronized and work in tandem (they see each other's pulses). Each cycle only one laser plane sweeps the room,
 so we fully update 3d position every 4 cycles (2 stations * horizontal/vertical sweep). Cycles are 8.333ms long, which is
 exactly 120Hz. Laser plane rotation speed is exactly 180deg per cycle.
 
 Each cycle, as received by sensor, has the following pulse structure:
+
 | Pulse start, µs | Pulse length, µs | Source station | Meaning |
 | --------: | ---------: | -------------: | :------ |
 |         0 |     65–135 |              A | Sync pulse (LED array, omnidirectional) |
@@ -52,10 +56,10 @@ Each cycle, as received by sensor, has the following pulse structure:
 | 1222–6777 |        ~10 |         A or B | Laser plane sweep pulse (center=4000µs) |
 |      8333 |            |                | End of cycle |
 
-It looks like this:
-[![Lighthouse pulse structure](https://cloud.githubusercontent.com/assets/627997/20043378/32739902-a441-11e6-96d4-c18f27c56205.png)](https://youtu.be/7OFeN3gl3SQ)
+You can see all three pulses in the IR photodiode output (click for video):
+[![Lighthouse pulse structure](https://cloud.githubusercontent.com/assets/627997/20243190/0e54fc44-a902-11e6-90cd-a4edf2464e7e.png)](https://youtu.be/7OFeN3gl3SQ)
 
-The sync pulse length encodes which of the 4 cycles we're receiving and station id/calibration data
+The sync pulse lengths encode which of the 4 cycles we're receiving and station id/calibration data
 (see [description](https://github.com/nairol/LighthouseRedox/blob/master/docs/Light%20Emissions.md)).
 
 ## Hardware
