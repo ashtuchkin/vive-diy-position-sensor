@@ -19,9 +19,9 @@ HTC Vive's Lighthouse is an amazing piece of technology that enables room-scale 
 -->
 
 ## How it works
-Lighthouse position tracking system consists of:
- * two stationary infrared-emitting base stations (we'll use existing HTC Vive setup),
- * IR receiving sensor and processing module (this is what we'll create).
+Lighthouse position tracking system consists of:  
+&nbsp;&nbsp;– two stationary infrared-emitting base stations (we'll use existing HTC Vive setup),  
+&nbsp;&nbsp;– IR receiving sensor and processing module (this is what we'll create).  
 
 The base stations are usually placed high in the room corners and "overlook" the room.
 Each station has an IR LED array and two rotating laser planes, horizontal and vertical.
@@ -32,12 +32,12 @@ Using the timing information, we can calculate 3d lines from each base station t
 3d coordinates of our sensor.
 Great thing about this approach is that it doesn't depend on light intensity and can be made very precise with cheap hardware.
 
-Visualization of one base station (by rvdm88, click for full video):
+Visualization of one base station (by rvdm88, click for full video):  
 [![How it works](http://i.giphy.com/ijMzXRF3OYBZ6.gif)](https://www.youtube.com/watch?v=oqPaaMR4kY4)
 
-See also:
-[This Is How Valve’s Amazing Lighthouse Tracking Technology Works – Gizmodo](http://gizmodo.com/this-is-how-valve-s-amazing-lighthouse-tracking-technol-1705356768)
-[Lighthouse tracking examined – Oliver Kreylos' blog](http://doc-ok.org/?p=1478)
+See also:  
+[This Is How Valve’s Amazing Lighthouse Tracking Technology Works – Gizmodo](http://gizmodo.com/this-is-how-valve-s-amazing-lighthouse-tracking-technol-1705356768)  
+[Lighthouse tracking examined – Oliver Kreylos' blog](http://doc-ok.org/?p=1478)  
 
 The sensor we're building is the receiving side of the Lighthouse. It will receive, recognize the IR pulses, calculate
 the angles and produce 3d coordinates.
