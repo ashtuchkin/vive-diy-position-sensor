@@ -91,7 +91,7 @@ Full schematics:
 | --- | --- |
 | ![image](https://cloud.githubusercontent.com/assets/627997/20243575/291a2f7a-a913-11e6-9cd9-a152f66b2817.png) | ![image](https://cloud.githubusercontent.com/assets/627997/20243577/3d91bcb6-a913-11e6-9c58-30caf060dbc3.png) |
 
-Part list:
+Part list (add to cart [from here](1-click-bom.tsv) using [1-click BOM](https://1clickbom.com)):
 
 | Part | Model | Count | Cost (digikey) |
 | --- | --- | --- | ---: |
