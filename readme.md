@@ -24,7 +24,7 @@ Each cycle, after LED array flash (sync pulse), laser planes sweep the room hori
 This means that the time between the sync pulse and the laser plane "touching" sensor is proportional to horizontal/vertical angle
 from base station's center direction.
 Using this timing information, we can calculate 3d lines from each base station to sensor, the crossing of which yields
-3d coordinates of our sensor.
+3d coordinates of our sensor (see [calculation details](../../wiki/Position-calculation-in-detail)).
 Great thing about this approach is that it doesn't depend on light intensity and can be made very precise with cheap hardware.
 
 Visualization of one base station (by rvdm88, click for full video):  
