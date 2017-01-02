@@ -294,7 +294,7 @@ inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len
     }
 }
 
-
+// aww: updating this function to use TS3633-CM1 hardware which uses active low pulses
 void cmp0_isr() {
     const uint32_t timestamp = micros();
     const uint32_t cmpState = CMP0_SCR;
@@ -302,13 +302,15 @@ void cmp0_isr() {
     input_data &d = global_input_data[0];
     d.crossings++;
 
-    if (d.rise_time && (cmpState & CMP_SCR_CFF)) { // Fallen edge registered
+//    if (d.rise_time && (cmpState & CMP_SCR_CFF)) { // Fallen edge registered
+    if (d.rise_time && (cmpState & CMP_SCR_CFR)) { // Rising edge registered
         const uint32_t pulse_len = timestamp - d.rise_time;
         process_pulse(d, d.rise_time, pulse_len);
         d.rise_time = 0;
     }
 
-    if (cmpState & (CMP_SCR_CFR | CMP_SCR_COUT)) { // Rising edge registered and state is now high
+//    if (cmpState & (CMP_SCR_CFR | CMP_SCR_COUT)) { // Rising edge registered and state is now high
+    if (cmpState & (CMP_SCR_CFF | ~CMP_SCR_COUT)) { // Rising edge registered and state is now high
         d.rise_time = timestamp;
     }
 
