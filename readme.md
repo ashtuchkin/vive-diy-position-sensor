@@ -121,6 +121,13 @@ Sample oscilloscope videos:
 
 Note: Teensy's RX1/TX1 UART interface can be used to output position instead of USB. 
 
+### TS3633-CM1
+
+It is also possible to connect the TS3633-CM1 sensor to the Teensy, connecting GND, VCC 3.3 and D12 pins. This will require a minor change in the software, as shown in this [commit](https://github.com/skyviewlabs/vive-diy-position-sensor/commit/02dab93ba67aa18ddd7fa6de190d0018665c8dba).
+
+| Teensy 3.2 to TS3633-CM1 connections |
+| --- | 
+| ![image](https://cloud.githubusercontent.com/assets/725468/21744985/01d7aee4-d4d6-11e6-8fa6-311baf77ce6a.jpg) |
 
 ## Software (Teensy)
 
