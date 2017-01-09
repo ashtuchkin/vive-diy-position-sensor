@@ -4,7 +4,7 @@
 // Consumes raw lighthouse pulses in the form of rising-edge timestamp and
 // pulse width from a single sensor, and parses that into higher-level events,
 // like x sweep, y sweep, OOTX data, etc.
-class ClassifiedPulse {
+struct ClassifiedPulse {
   enum Station {
     STATION_MASTER,
     STATION_SLAVE,
@@ -17,22 +17,25 @@ class ClassifiedPulse {
   };
   Type type;
 
-  enum SweepAxis {
-    AXIS_X,
-    AXIS_Y,
-  };
-  SweepAxis sweep_axis;
-
   // Units are in clock ticks.
   int rising_edge_timestamp;
   int pulse_width;
 
+  // The sweep from the lighthouse that sent this sync pulse will be skipped.
+  // Only valid for sync pulses.
+  int skip_bit;
+
+  // The Omnidirectional Optical Transmitter (OOTX) bit. Only valid for sync
+  // pulses.
+  int ootx_bit;
+
+  // The axis the upcoming sweep is for, if skip_bit = 0. Only valid for sync
+  // pulses.
+  int axis_bit;
+
   // Only valid for TYPE_SWEEP. If time is zero, then no matching sync pulse
   // was available to match against.
   int time_from_matching_sync;
-
-  // Only valid for sync pulses.
-  int ootx_bit;
 };
 
 class LighthousePulseClassifier {
