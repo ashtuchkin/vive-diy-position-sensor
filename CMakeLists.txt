@@ -12,6 +12,7 @@ if (NOT ${LOCAL_BUILD})
   set(SOURCE_FILES
           main.cpp
           setup.cpp
+          RingBuffer.cpp
           data_decoder.cpp
           geometry.cpp
           mavlink.cpp

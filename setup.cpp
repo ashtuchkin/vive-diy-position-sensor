@@ -35,7 +35,10 @@ bool setupFlexTimer(uint32_t pin = 3) {
     // Derived from https://github.com/tni/teensy-samples/blob/master/input_capture_dma.ino
     // Derived from https://github.com/PaulStoffregen/FreqMeasureMulti
 
-    uint8_t channel;
+    uint8_t channel = 0;
+
+    // Turn off IRQs for FTM1 during setup
+	NVIC_DISABLE_IRQ(IRQ_FTM1);
 
     switch (pin) {
         // FTM0, channels 0-7
@@ -51,7 +54,6 @@ bool setupFlexTimer(uint32_t pin = 3) {
 
         // FTM1, channels 0-1
         case  3: channel = 0; CORE_PIN3_CONFIG  = PORT_PCR_MUX(3); break;
-
 #endif
 
 		default:
@@ -59,23 +61,23 @@ bool setupFlexTimer(uint32_t pin = 3) {
 			return false;
 	}
 
-    // Turn off IRQs for FTM1 during setup
-	NVIC_DISABLE_IRQ(IRQ_FTM1);
+    // Disable write protect on FTM1
+    FTM1_MODE = FTM_MODE_WPDIS | FTM_MODE_FTMEN;
 
     // setup FTM1 in free running mode, counting from 0 - 0xFFFF
     FTM1_SC = 0;
     FTM1_CNT = 0;
+    FTM1_CNTIN = 0;
     FTM1_MOD = 0xFFFF;
+
+    // No filtering
+    FTM1_FILTER = 0;
 
     // set FTM1 clock source to system clock; FTM_SC_PS(0): divide clock by 1
     FTM1_SC = (FTM_SC_CLKS(1) | FTM_SC_PS(0));
 
-    // need to unprotect FTM1_COMBINE register
-    FTM1_MODE = FTM_MODE_WPDIS;
-
     // set FTM1 CH0 to dual edge capture enable, paired channels
     FTM1_COMBINE = FTM_COMBINE_DECAPEN0;
-    FTM1_MODE = FTM_MODE_WPDIS | FTM_MODE_FTMEN;
 
     // channel 0, capture falling edge; FTM_CSC_MSA --> dual-edge, continous capture mode
     FTM1_C0SC = FTM_CSC_ELSB | FTM_CSC_MSA;
@@ -88,11 +90,12 @@ bool setupFlexTimer(uint32_t pin = 3) {
     // TODO: choose IRQ prioritiy for FTM1_SC
     // TODO: enable FTM0 interrupts/prioritiy
 	NVIC_SET_PRIORITY(IRQ_FTM1, 128);
-	//NVIC_ENABLE_IRQ(IRQ_FTM1);
+	NVIC_ENABLE_IRQ(IRQ_FTM1);
 
     // Clear channel flags and enable dual edge captures
-    FTM1_STATUS	= 0x00;
-    FTM1_COMBINE = FTM_COMBINE_DECAP0;
+    FTM1_C0SC &= ~FTM_CSC_CHF;
+    FTM1_C1SC &= ~FTM_CSC_CHF;
+    FTM1_COMBINE |= FTM_COMBINE_DECAP0;
     return true;
 }
 
@@ -100,7 +103,6 @@ void setup() {
     Serial.begin(9600);
     Serial1.begin(57600);
     pinMode(LED_BUILTIN, OUTPUT);
-
 
     setupComparator();
     setupFlexTimer(3);

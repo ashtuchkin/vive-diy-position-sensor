@@ -1,4 +1,5 @@
 #include "main.h"
+#include "RingBuffer.h"
 
 // Comparator-specific data
 input_data global_input_data[num_inputs] = {{
@@ -21,10 +22,16 @@ input_data global_input_data[num_inputs] = {{
 
 
 // Print loop vars
-bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false;
-unsigned int loopCount = 0;
+bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false, printSkyview = true;
+unsigned int loopCount = 0, isrCount = 0, pulse_width;
 unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
 int prevCycleId = -1;
+
+// Buffers for Lighthouse Pulse Processor
+RingBuffer *pulseStartBuffer = new RingBuffer;
+RingBuffer *pulseWidthBuffer = new RingBuffer;
+
+bool pulsePending = false;
 
 void loop() {
     loopCount++;
@@ -41,10 +48,37 @@ void loop() {
                 case 'w': printCycles = !printCycles; prevCycleId = -1; break;
                 case 'b': printFrames = !printFrames; break;
                 case 'd': printDecoders = !printDecoders; break;
+                case 'a': printSkyview = !printSkyview; break;
                 case '+': changeCmdDacLevel(d, +1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 case '-': changeCmdDacLevel(d, -1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 default: break;
             }
+        }
+
+        if (printSkyview) {
+            Serial.printf("\nFTM1 ISR triggers: %d", isrCount);
+            uint32_t pulses[4];
+            int pulseIdx = 0;
+/*
+            while(pulseIdx < 8) {
+                pulses[0] = pulseWidthBuffer->read();
+                pulses[1] = pulseWidthBuffer->read();
+                pulses[2] = pulseWidthBuffer->read();
+                pulses[3] = pulseWidthBuffer->read();
+                Serial.printf("\nPulse widths: %4d %4d %4d %4d", pulses[0], pulses[1], pulses[2], pulses[3]);
+                pulseIdx++;
+            }
+*/
+
+            while((pulseWidthBuffer->isEmpty() != 1))
+            {
+                pulseWidthBuffer->read();
+                pulseIdx++;
+            }
+
+            Serial.printf("\nPulses in buffer: %d", pulseIdx);
+
+
         }
 
         if (printCycles) {
@@ -294,7 +328,6 @@ inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len
     }
 }
 
-// aww: updating this function to use TS3633-CM1 hardware which uses active low pulses
 void cmp0_isr() {
     const uint32_t timestamp = micros();
     const uint32_t cmpState = CMP0_SCR;
@@ -318,4 +351,31 @@ void cmp0_isr() {
     CMP0_SCR = CMP_SCR_IER | CMP_SCR_IEF | CMP_SCR_CFR | CMP_SCR_CFF;
 }
 
+extern "C" void FASTRUN ftm1_isr(void) {
+    uint32_t falling_edge_timestamp, rising_edge_timestamp, pulse_width;
+    bool overflow;
 
+    // TODO: handle timer overflow in timestamps
+    if (FTM1_SC & FTM_SC_TOF) {
+        FTM1_SC &= ~FTM_SC_TOF;
+    }
+
+    if (FTM1_C0SC & FTM_CSC_CHF) {
+        FTM1_C0SC &= ~FTM_CSC_CHF;
+        falling_edge_timestamp = FTM1_C0V;
+    }
+
+    if (FTM1_C1SC & FTM_CSC_CHF) {
+        FTM1_C1SC &= ~FTM_CSC_CHF;
+        rising_edge_timestamp = FTM1_C1V;
+    }
+
+    pulse_width = rising_edge_timestamp - falling_edge_timestamp;
+    pulseStartBuffer->write(falling_edge_timestamp);
+    pulseWidthBuffer->write(pulse_width);
+
+    ++isrCount;
+    pulsePending = true;
+    FTM1_STATUS	= 0x00;
+    return;
+}
