@@ -23,15 +23,13 @@ input_data global_input_data[num_inputs] = {{
 
 // Print loop vars
 bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false, printSkyview = false, printPulses = false, printMicroseconds = false, useHardwareTimer = false;
-unsigned int loopCount = 0, isrCount = 0, lastBufferCount = 0;
+unsigned int loopCount = 0, isrCount = 0;
 unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
 int prevCycleId = -1;
 
 // Buffers for Lighthouse Pulse Processor
 RingBuffer *pulseStartBuffer = new RingBuffer;
 RingBuffer *pulseWidthBuffer = new RingBuffer;
-
-bool pulsePending = false;
 
 void loop() {
     loopCount++;
@@ -51,7 +49,16 @@ void loop() {
                 case 'a': printSkyview = !printSkyview; break;
                 case 's': printPulses = !printPulses; break;
                 case 'u': printMicroseconds = !printMicroseconds; break;
-                case 'h': useHardwareTimer = !useHardwareTimer; break;
+                case 'h':
+                    useHardwareTimer = !useHardwareTimer;
+                    if (useHardwareTimer)
+                    {
+                        NVIC_DISABLE_IRQ(IRQ_CMP0);
+                    } else 
+                    {
+                        NVIC_ENABLE_IRQ(IRQ_CMP0);
+                    }
+                    break;
                 case '+': changeCmdDacLevel(d, +1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 case '-': changeCmdDacLevel(d, -1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 default: break;
@@ -62,7 +69,7 @@ void loop() {
             Serial.printf("\nFTM1 ISR triggers: %d", isrCount);
         }
 
-        // Print out the first 8 pulses
+        // DEBUG: Print out the first 8 pulses for inspection
         if (printPulses) {
             int pulseIdx = 0;
             int value;
@@ -140,7 +147,6 @@ void loop() {
             Serial.printf("Loops: %d\n", loopCount); loopCount = 0;
             Serial.printf("Cycles write idx: %d\n", d.cycles_write_idx);
             Serial.printf("Cur Dac level: %d (%d)\n", d.dac_level, getCmpLevel());
-            Serial.printf("Last buffer count: %d\n", lastBufferCount);
         }
 
         digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
@@ -152,20 +158,18 @@ void loop() {
         // Process pulses outside of the ISR
         if (useHardwareTimer)
         {
-            lastBufferCount = 0;
             // Dequeue pending pulses
             while (pulseWidthBuffer->isEmpty() != 1){
-                ++lastBufferCount;
                 d.crossings++;
-                d.rise_time = pulseStartBuffer->read() / 48;
-                process_pulse(d, d.rise_time, pulseWidthBuffer->read() / 48);
+                d.rise_time = pulseStartBuffer->read();
 
                 // WARNING: process_pulse() currently uses microseconds as the
                 // unit for pulse start and pulse width. This is a 48x loss of
-                // precision than could be obtained using HW timer.
+                // precision than could be obtained using HW timer with ticks
+                // of 48 MHz clock (20.83 ns per tick).
+                process_pulse(d, d.rise_time / 48, pulseWidthBuffer->read() / 48);
             }
         }
-
 
         /*
         // 1. Comparator level dynamic adjustment.
@@ -360,18 +364,13 @@ void cmp0_isr() {
     input_data &d = global_input_data[0];
     d.crossings++;
 
-//    if (d.rise_time && (cmpState & CMP_SCR_CFF)) { // Fallen edge registered
-    if (d.rise_time && (cmpState & CMP_SCR_CFR)) { // Rising edge registered
+    if (d.rise_time && (cmpState & CMP_SCR_CFF)) { // Fallen edge registered
         const uint32_t pulse_len = timestamp - d.rise_time;
-        // Suppress process_pulse call if FMT1 HW timer is used
-        if (!useHardwareTimer) {
-            process_pulse(d, d.rise_time, pulse_len);
-        }
+        process_pulse(d, d.rise_time, pulse_len);
         d.rise_time = 0;
     }
 
-//    if (cmpState & (CMP_SCR_CFR | CMP_SCR_COUT)) { // Rising edge registered and state is now high
-    if (cmpState & (CMP_SCR_CFF | ~CMP_SCR_COUT)) { // Rising edge registered and state is now high
+    if (cmpState & (CMP_SCR_CFR | CMP_SCR_COUT)) { // Rising edge registered and state is now high
         d.rise_time = timestamp;
     }
 
@@ -388,7 +387,6 @@ extern "C" void FASTRUN ftm1_isr(void) {
     if (FTM1_SC & FTM_SC_TOF) {
         ++ftm1_overflow;
         FTM1_SC &= ~FTM_SC_TOF;
-        overflow = true;
     }
 
     if (FTM1_C0SC & FTM_CSC_CHF) {
@@ -415,8 +413,6 @@ extern "C" void FASTRUN ftm1_isr(void) {
         pulseWidthBuffer->write(pulse_width);
 
         ++isrCount;
-        pulsePending = true;
     }
-    
     return;
 }
