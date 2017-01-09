@@ -38,27 +38,27 @@ bool setupFlexTimer(uint32_t pin = 3) {
     uint8_t channel = 0;
 
     // Turn off IRQs for FTM1 during setup
-	NVIC_DISABLE_IRQ(IRQ_FTM1);
+    NVIC_DISABLE_IRQ(IRQ_FTM1);
 
     switch (pin) {
         // FTM0, channels 0-7
-		case 22: channel = 0; CORE_PIN22_CONFIG = PORT_PCR_MUX(4); break;
-		case 23: channel = 1; CORE_PIN23_CONFIG = PORT_PCR_MUX(4); break;
-		case  9: channel = 2; CORE_PIN9_CONFIG  = PORT_PCR_MUX(4); break;
-		case 10: channel = 3; CORE_PIN10_CONFIG = PORT_PCR_MUX(4); break;
-		case  6: channel = 4; CORE_PIN6_CONFIG  = PORT_PCR_MUX(4); break;
-		case 20: channel = 5; CORE_PIN20_CONFIG = PORT_PCR_MUX(4); break;
+        case 22: channel = 0; CORE_PIN22_CONFIG = PORT_PCR_MUX(4); break;
+        case 23: channel = 1; CORE_PIN23_CONFIG = PORT_PCR_MUX(4); break;
+        case  9: channel = 2; CORE_PIN9_CONFIG  = PORT_PCR_MUX(4); break;
+        case 10: channel = 3; CORE_PIN10_CONFIG = PORT_PCR_MUX(4); break;
+        case  6: channel = 4; CORE_PIN6_CONFIG  = PORT_PCR_MUX(4); break;
+        case 20: channel = 5; CORE_PIN20_CONFIG = PORT_PCR_MUX(4); break;
 #if defined(KINETISK)
-		case 21: channel = 6; CORE_PIN21_CONFIG = PORT_PCR_MUX(4); break;
-		case  5: channel = 7; CORE_PIN5_CONFIG  = PORT_PCR_MUX(4); break;
+        case 21: channel = 6; CORE_PIN21_CONFIG = PORT_PCR_MUX(4); break;
+        case  5: channel = 7; CORE_PIN5_CONFIG  = PORT_PCR_MUX(4); break;
 
         // FTM1, channels 0-1
         case  3: channel = 0; CORE_PIN3_CONFIG  = PORT_PCR_MUX(3); break;
 #endif
 
-		default:
-			channel = 8;
-			return false;
+        default:
+            channel = 8;
+            return false;
 	}
 
     // Disable write protect on FTM1
@@ -88,9 +88,8 @@ bool setupFlexTimer(uint32_t pin = 3) {
 
     // Enable interrupts for FTM1
     // TODO: choose IRQ prioritiy for FTM1_SC
-    // TODO: enable FTM0 interrupts/prioritiy
-	NVIC_SET_PRIORITY(IRQ_FTM1, 128);
-	NVIC_ENABLE_IRQ(IRQ_FTM1);
+    NVIC_SET_PRIORITY(IRQ_FTM1, 128);
+    NVIC_ENABLE_IRQ(IRQ_FTM1);
 
     // Clear channel flags and enable dual edge captures
     FTM1_C0SC &= ~FTM_CSC_CHF;

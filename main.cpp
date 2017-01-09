@@ -69,7 +69,6 @@ void loop() {
                 pulseIdx++;
             }
 */
-
             while((pulseWidthBuffer->isEmpty() != 1))
             {
                 pulseWidthBuffer->read();
@@ -376,6 +375,6 @@ extern "C" void FASTRUN ftm1_isr(void) {
 
     ++isrCount;
     pulsePending = true;
-    FTM1_STATUS	= 0x00;
+    FTM1_STATUS = 0x00;
     return;
 }
