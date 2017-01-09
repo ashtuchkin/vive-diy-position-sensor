@@ -22,7 +22,7 @@ input_data global_input_data[num_inputs] = {{
 
 
 // Print loop vars
-bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false, printSkyview = false, printPulses = false;
+bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false, printSkyview = false, printPulses = false, printMicroseconds = false;
 unsigned int loopCount = 0, isrCount = 0;
 unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
 int prevCycleId = -1;
@@ -50,6 +50,7 @@ void loop() {
                 case 'd': printDecoders = !printDecoders; break;
                 case 'a': printSkyview = !printSkyview; break;
                 case 's': printPulses = !printPulses; break;
+                case 'u': printMicroseconds = !printMicroseconds; break;
                 case '+': changeCmdDacLevel(d, +1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 case '-': changeCmdDacLevel(d, -1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 default: break;
@@ -63,10 +64,14 @@ void loop() {
         // Print out the first 8 pulses
         if (printPulses) {
             int pulseIdx = 0;
+            int value;
             while ((pulseWidthBuffer->isEmpty() != 1) && (pulseIdx < 16)) {
                 if (pulseIdx % 4 == 0) Serial.print("\nPulse widths: ");
+                value = pulseWidthBuffer->read();
 
-                Serial.printf("%4d ", pulseWidthBuffer->read());
+                // TODO: Correct for bus speeds
+                if (printMicroseconds) value = value / 48;
+                Serial.printf("%4d ", value);
                 pulseIdx++;
             }
 
