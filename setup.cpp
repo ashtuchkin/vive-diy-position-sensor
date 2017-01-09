@@ -2,6 +2,9 @@
 
 uint16_t ftm1_overflow;
 
+// TS3633-CM1 hardware is active low
+bool sensorActiveHigh = false;
+
 void setupComparator() {
     NVIC_SET_PRIORITY(IRQ_CMP0, 64); // very high prio (0 = highest priority, 128 = medium, 255 = lowest)
     NVIC_ENABLE_IRQ(IRQ_CMP0);
@@ -85,12 +88,12 @@ bool setupFlexTimer(uint32_t pin = 3) {
     // set FTM1 CH0 to dual edge capture enable, paired channels
     FTM1_COMBINE = FTM_COMBINE_DECAPEN0;
 
-    // channel 0, capture falling edge; FTM_CSC_MSA --> dual-edge, continous capture mode
-    FTM1_C0SC = FTM_CSC_ELSB | FTM_CSC_MSA;
+    // channel 0, capture active edge; FTM_CSC_MSA --> dual-edge, continous capture mode
+    FTM1_C0SC = (sensorActiveHigh ? FTM_CSC_ELSA : FTM_CSC_ELSB) | FTM_CSC_MSA;
 
-    // channel 1, capture rising edge; FTM_CSC_MSA --> continous capture mode
+    // channel 1, capture opposite edge; FTM_CSC_MSA --> continous capture mode
     // channel 1 interrupt enable
-    FTM1_C1SC = FTM_CSC_ELSA | FTM_CSC_MSA | FTM_CSC_CHIE;
+    FTM1_C1SC = (sensorActiveHigh ? FTM_CSC_ELSB : FTM_CSC_ELSA) | FTM_CSC_MSA | FTM_CSC_CHIE;
 
     // Enable interrupts for FTM1
     // TODO: choose IRQ prioritiy for FTM1_SC

@@ -54,7 +54,7 @@ void loop() {
                     if (useHardwareTimer)
                     {
                         NVIC_DISABLE_IRQ(IRQ_CMP0);
-                    } else 
+                    } else
                     {
                         NVIC_ENABLE_IRQ(IRQ_CMP0);
                     }
@@ -364,13 +364,14 @@ void cmp0_isr() {
     input_data &d = global_input_data[0];
     d.crossings++;
 
-    if (d.rise_time && (cmpState & CMP_SCR_CFF)) { // Fallen edge registered
+    
+    if (d.rise_time && (cmpState & (sensorActiveHigh ? CMP_SCR_CFF : CMP_SCR_CFR))) { // Fallen edge registered
         const uint32_t pulse_len = timestamp - d.rise_time;
         process_pulse(d, d.rise_time, pulse_len);
         d.rise_time = 0;
     }
 
-    if (cmpState & (CMP_SCR_CFR | CMP_SCR_COUT)) { // Rising edge registered and state is now high
+    if (cmpState & ((sensorActiveHigh ? CMP_SCR_CFR : CMP_SCR_CFF) | CMP_SCR_COUT)) { // Rising edge registered and state is now high
         d.rise_time = timestamp;
     }
 
@@ -381,7 +382,6 @@ void cmp0_isr() {
 
 extern "C" void FASTRUN ftm1_isr(void) {
     uint32_t first_edge_timestamp, second_edge_timestamp, pulse_width;
-    bool overflow;
 
     // Handle timer overflow in timestamps
     if (FTM1_SC & FTM_SC_TOF) {
