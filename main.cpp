@@ -22,8 +22,8 @@ input_data global_input_data[num_inputs] = {{
 
 
 // Print loop vars
-bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false, printSkyview = true;
-unsigned int loopCount = 0, isrCount = 0, pulse_width;
+bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false, printSkyview = false, printPulses = false;
+unsigned int loopCount = 0, isrCount = 0;
 unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
 int prevCycleId = -1;
 
@@ -49,6 +49,7 @@ void loop() {
                 case 'b': printFrames = !printFrames; break;
                 case 'd': printDecoders = !printDecoders; break;
                 case 'a': printSkyview = !printSkyview; break;
+                case 's': printPulses = !printPulses; break;
                 case '+': changeCmdDacLevel(d, +1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 case '-': changeCmdDacLevel(d, -1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 default: break;
@@ -57,18 +58,19 @@ void loop() {
 
         if (printSkyview) {
             Serial.printf("\nFTM1 ISR triggers: %d", isrCount);
-            uint32_t pulses[4];
+        }
+
+        // Print out the first 8 pulses
+        if (printPulses) {
             int pulseIdx = 0;
-/*
-            while(pulseIdx < 8) {
-                pulses[0] = pulseWidthBuffer->read();
-                pulses[1] = pulseWidthBuffer->read();
-                pulses[2] = pulseWidthBuffer->read();
-                pulses[3] = pulseWidthBuffer->read();
-                Serial.printf("\nPulse widths: %4d %4d %4d %4d", pulses[0], pulses[1], pulses[2], pulses[3]);
+            while ((pulseWidthBuffer->isEmpty() != 1) && (pulseIdx < 16)) {
+                if (pulseIdx % 4 == 0) Serial.print("\nPulse widths: ");
+
+                Serial.printf("%4d ", pulseWidthBuffer->read());
                 pulseIdx++;
             }
-*/
+
+            // Count up the remaining pulses
             while((pulseWidthBuffer->isEmpty() != 1))
             {
                 pulseWidthBuffer->read();
@@ -76,8 +78,6 @@ void loop() {
             }
 
             Serial.printf("\nPulses in buffer: %d", pulseIdx);
-
-
         }
 
         if (printCycles) {
@@ -360,13 +360,19 @@ extern "C" void FASTRUN ftm1_isr(void) {
     }
 
     if (FTM1_C0SC & FTM_CSC_CHF) {
-        FTM1_C0SC &= ~FTM_CSC_CHF;
-        falling_edge_timestamp = FTM1_C0V;
+        // Technically do nothing
+        // FTM1_C0SC &= ~FTM_CSC_CHF;
     }
 
     if (FTM1_C1SC & FTM_CSC_CHF) {
-        FTM1_C1SC &= ~FTM_CSC_CHF;
+        falling_edge_timestamp = FTM1_C0V;
         rising_edge_timestamp = FTM1_C1V;
+        FTM1_C1SC &= ~FTM_CSC_CHF;
+    }
+
+    if (falling_edge_timestamp > rising_edge_timestamp)
+    {
+        rising_edge_timestamp += 0xFFFF;
     }
 
     pulse_width = rising_edge_timestamp - falling_edge_timestamp;
@@ -375,6 +381,5 @@ extern "C" void FASTRUN ftm1_isr(void) {
 
     ++isrCount;
     pulsePending = true;
-    FTM1_STATUS = 0x00;
     return;
 }
