@@ -9,7 +9,7 @@ class ClassifiedPulse {
     STATION_MASTER,
     STATION_SLAVE,
   };
-  Statiton station;
+  Station station;
 
   enum Type {
     TYPE_SYNC,
@@ -23,25 +23,33 @@ class ClassifiedPulse {
   };
   SweepAxis sweep_axis;
 
-  // TODO(keir): These two may not be needed.
-  int rising_edge_time_us;
-  int width_us;
-
-  // Only valid for sync pulses.
-  int ootx_bit;
+  // Units are in clock ticks.
+  int rising_edge_timestamp;
+  int pulse_width;
 
   // Only valid for TYPE_SWEEP. If time is zero, then no matching sync pulse
   // was available to match against.
-  int time_from_matching_sync;  // FIXME units
-};
+  int time_from_matching_sync;
 
+  // Only valid for sync pulses.
+  int ootx_bit;
+};
 
 class LighthousePulseClassifier {
  public:
-   bool NotifyRawPulse(int rising_edge_time_us,
-                       int width_us,
-                       Pulse* classified_pulse)
- 
+  // Times are in clock ticks, but the conversion to microseconds is needed to
+  // classify the sync pulses according to the table provided by Valve.
+  LighthousePulseClassifier(float time_units_per_us);
+
+  
+  // Add a pulse to the classifier, and classify it in the process. If the
+  // pulse can't be classified or is unknown, false is returned and the
+  // contents of classified_pulse are unchanged. Otherwise, classified_pulse
+  // is filled in.
+  bool AddPulse(int rising_edge_timestamp,
+                int pulse_width,
+                ClassifiedPulse* classified_pulse);
+
  private:
   // Some work needed here :)
 };
