@@ -23,7 +23,7 @@ input_data global_input_data[num_inputs] = {{
 
 // Print loop vars
 bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false, printSkyview = false, printPulses = false, printMicroseconds = false, useHardwareTimer = false;
-unsigned int loopCount = 0, isrCount = 0;
+unsigned int loopCount = 0, isrCount = 0, lastBufferCount = 0;
 unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
 int prevCycleId = -1;
 
@@ -87,8 +87,6 @@ void loop() {
             Serial.printf("\nLast pulse timestamp: %u", pulseStartBuffer->read());
         }
 
-
-
         if (printCycles) {
             for (; d.cycles_read_idx != d.cycles_write_idx; INC_CONSTRAINED(d.cycles_read_idx, cycles_buffer_len)) {
                 cycle &c = d.cycles[d.cycles_read_idx];
@@ -142,6 +140,7 @@ void loop() {
             Serial.printf("Loops: %d\n", loopCount); loopCount = 0;
             Serial.printf("Cycles write idx: %d\n", d.cycles_write_idx);
             Serial.printf("Cur Dac level: %d (%d)\n", d.dac_level, getCmpLevel());
+            Serial.printf("Last buffer count: %d\n", lastBufferCount);
         }
 
         digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
@@ -149,6 +148,24 @@ void loop() {
 
     if (curMillis - prevMillis2 >= 34) {  // 33.33ms => 4 cycles
         prevMillis2 = curMillis;
+
+        // Process pulses outside of the ISR
+        if (useHardwareTimer)
+        {
+            lastBufferCount = 0;
+            // Dequeue pending pulses
+            while (pulseWidthBuffer->isEmpty() != 1){
+                ++lastBufferCount;
+                d.crossings++;
+                d.rise_time = pulseStartBuffer->read() / 48;
+                process_pulse(d, d.rise_time, pulseWidthBuffer->read() / 48);
+
+                // WARNING: process_pulse() currently uses microseconds as the
+                // unit for pulse start and pulse width. This is a 48x loss of
+                // precision than could be obtained using HW timer.
+            }
+        }
+
 
         /*
         // 1. Comparator level dynamic adjustment.
@@ -346,6 +363,7 @@ void cmp0_isr() {
 //    if (d.rise_time && (cmpState & CMP_SCR_CFF)) { // Fallen edge registered
     if (d.rise_time && (cmpState & CMP_SCR_CFR)) { // Rising edge registered
         const uint32_t pulse_len = timestamp - d.rise_time;
+        // Suppress process_pulse call if FMT1 HW timer is used
         if (!useHardwareTimer) {
             process_pulse(d, d.rise_time, pulse_len);
         }
@@ -395,14 +413,6 @@ extern "C" void FASTRUN ftm1_isr(void) {
         pulse_width = second_edge_timestamp - first_edge_timestamp;
         pulseStartBuffer->write(first_edge_timestamp);
         pulseWidthBuffer->write(pulse_width);
-
-        if (useHardwareTimer)
-        {
-            input_data &d = global_input_data[0];
-            d.crossings++;
-            d.rise_time = first_edge_timestamp / 48;
-            process_pulse(d, d.rise_time, pulse_width / 48);
-        }
 
         ++isrCount;
         pulsePending = true;
