@@ -3,6 +3,8 @@
 #include <arm_math.h>
 #include <Arduino.h>
 
+extern uint16_t ftm1_overflow;
+
 const static int num_inputs = 1;
 const static int cycles_buffer_len = 1024;
 

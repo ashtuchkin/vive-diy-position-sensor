@@ -22,7 +22,7 @@ input_data global_input_data[num_inputs] = {{
 
 
 // Print loop vars
-bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false, printSkyview = false, printPulses = false, printMicroseconds = false;
+bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false, printSkyview = false, printPulses = false, printMicroseconds = false, useHardwareTimer = false;
 unsigned int loopCount = 0, isrCount = 0;
 unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
 int prevCycleId = -1;
@@ -51,6 +51,7 @@ void loop() {
                 case 'a': printSkyview = !printSkyview; break;
                 case 's': printPulses = !printPulses; break;
                 case 'u': printMicroseconds = !printMicroseconds; break;
+                case 'h': useHardwareTimer = !useHardwareTimer; break;
                 case '+': changeCmdDacLevel(d, +1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 case '-': changeCmdDacLevel(d, -1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 default: break;
@@ -83,7 +84,10 @@ void loop() {
             }
 
             Serial.printf("\nPulses in buffer: %d", pulseIdx);
+            Serial.printf("\nLast pulse timestamp: %u", pulseStartBuffer->read());
         }
+
+
 
         if (printCycles) {
             for (; d.cycles_read_idx != d.cycles_write_idx; INC_CONSTRAINED(d.cycles_read_idx, cycles_buffer_len)) {
@@ -342,7 +346,9 @@ void cmp0_isr() {
 //    if (d.rise_time && (cmpState & CMP_SCR_CFF)) { // Fallen edge registered
     if (d.rise_time && (cmpState & CMP_SCR_CFR)) { // Rising edge registered
         const uint32_t pulse_len = timestamp - d.rise_time;
-        process_pulse(d, d.rise_time, pulse_len);
+        if (!useHardwareTimer) {
+            process_pulse(d, d.rise_time, pulse_len);
+        }
         d.rise_time = 0;
     }
 
@@ -355,13 +361,16 @@ void cmp0_isr() {
     CMP0_SCR = CMP_SCR_IER | CMP_SCR_IEF | CMP_SCR_CFR | CMP_SCR_CFF;
 }
 
+
 extern "C" void FASTRUN ftm1_isr(void) {
-    uint32_t falling_edge_timestamp, rising_edge_timestamp, pulse_width;
+    uint32_t first_edge_timestamp, second_edge_timestamp, pulse_width;
     bool overflow;
 
-    // TODO: handle timer overflow in timestamps
+    // Handle timer overflow in timestamps
     if (FTM1_SC & FTM_SC_TOF) {
+        ++ftm1_overflow;
         FTM1_SC &= ~FTM_SC_TOF;
+        overflow = true;
     }
 
     if (FTM1_C0SC & FTM_CSC_CHF) {
@@ -370,21 +379,34 @@ extern "C" void FASTRUN ftm1_isr(void) {
     }
 
     if (FTM1_C1SC & FTM_CSC_CHF) {
-        falling_edge_timestamp = FTM1_C0V;
-        rising_edge_timestamp = FTM1_C1V;
+        uint16_t c0v = FTM1_C0V;
+        uint16_t c1v = FTM1_C1V;
+
+        first_edge_timestamp = c0v | (ftm1_overflow << 16);
+        second_edge_timestamp = c1v | (ftm1_overflow << 16);
         FTM1_C1SC &= ~FTM_CSC_CHF;
+
+        // Need to handle tricky overflow situation
+        // Not properly capturing the CH0-TOF-CH1 event sequence
+        if (second_edge_timestamp < first_edge_timestamp) {
+            first_edge_timestamp = (c0v | ftm1_overflow << 16) - (1 << 16);
+        }
+
+        pulse_width = second_edge_timestamp - first_edge_timestamp;
+        pulseStartBuffer->write(first_edge_timestamp);
+        pulseWidthBuffer->write(pulse_width);
+
+        if (useHardwareTimer)
+        {
+            input_data &d = global_input_data[0];
+            d.crossings++;
+            d.rise_time = first_edge_timestamp / 48;
+            process_pulse(d, d.rise_time, pulse_width / 48);
+        }
+
+        ++isrCount;
+        pulsePending = true;
     }
-
-    if (falling_edge_timestamp > rising_edge_timestamp)
-    {
-        rising_edge_timestamp += 0xFFFF;
-    }
-
-    pulse_width = rising_edge_timestamp - falling_edge_timestamp;
-    pulseStartBuffer->write(falling_edge_timestamp);
-    pulseWidthBuffer->write(pulse_width);
-
-    ++isrCount;
-    pulsePending = true;
+    
     return;
 }

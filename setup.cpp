@@ -1,5 +1,7 @@
 #include "main.h"
 
+uint16_t ftm1_overflow;
+
 void setupComparator() {
     NVIC_SET_PRIORITY(IRQ_CMP0, 64); // very high prio (0 = highest priority, 128 = medium, 255 = lowest)
     NVIC_ENABLE_IRQ(IRQ_CMP0);
@@ -75,6 +77,10 @@ bool setupFlexTimer(uint32_t pin = 3) {
 
     // set FTM1 clock source to system clock; FTM_SC_PS(0): divide clock by 1
     FTM1_SC = (FTM_SC_CLKS(1) | FTM_SC_PS(0));
+
+    // Enable timer overflow interrupts
+    ftm1_overflow = 0;
+    FTM1_SC |= FTM_SC_TOIE;
 
     // set FTM1 CH0 to dual edge capture enable, paired channels
     FTM1_COMBINE = FTM_COMBINE_DECAPEN0;
