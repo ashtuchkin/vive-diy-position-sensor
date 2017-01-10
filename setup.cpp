@@ -6,7 +6,7 @@ uint16_t ftm1_overflow_89s;
 // TS3633-CM1 sensor:   active low
 // Valve's sensor:      active high
 // @ashtuchkin sensor:  active high
-bool sensorActiveHigh = false;
+bool sensor0_active_high = false;
 
 void setupComparator() {
     NVIC_SET_PRIORITY(IRQ_CMP0, 64); // very high prio (0 = highest priority, 128 = medium, 255 = lowest)
@@ -38,7 +38,7 @@ void setupComparator() {
 }
 
 // Setup flex timer for pulse width measurement
-bool setupFlexTimer(uint32_t pin = 3) {
+bool SetupFTM1(uint32_t pin = 3) {
     // Derived from https://github.com/tni/teensy-samples/blob/master/input_capture_dma.ino
     // Derived from https://github.com/PaulStoffregen/FreqMeasureMulti
 
@@ -93,12 +93,12 @@ bool setupFlexTimer(uint32_t pin = 3) {
     FTM1_COMBINE = FTM_COMBINE_DECAPEN0;
 
     // channel 0, capture active edge; FTM_CSC_MSA --> dual-edge, continous capture mode
-    FTM1_C0SC   = (sensorActiveHigh ? FTM_CSC_ELSA : FTM_CSC_ELSB)
+    FTM1_C0SC   = (sensor0_active_high ? FTM_CSC_ELSA : FTM_CSC_ELSB)
                 | FTM_CSC_MSA;
 
     // channel 1, capture opposite edge; FTM_CSC_MSA --> dual-edge, continous capture mode
     // channel 1 interrupt enable
-    FTM1_C1SC   = (sensorActiveHigh ? FTM_CSC_ELSB : FTM_CSC_ELSA)
+    FTM1_C1SC   = (sensor0_active_high ? FTM_CSC_ELSB : FTM_CSC_ELSA)
                 | FTM_CSC_MSA | FTM_CSC_CHIE;
 
     // Enable interrupts for FTM1
@@ -120,7 +120,7 @@ void setup() {
     setupComparator();
 
     // TODO: Currently only supported on pin 3.
-    setupFlexTimer(3);
+    SetupFTM1(3);
 }
 
 // Replace stock yield to make loop() faster.

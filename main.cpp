@@ -60,10 +60,10 @@ void loop() {
 
                     if (useHardwareTimer) {
                         NVIC_DISABLE_IRQ(IRQ_CMP0);
-                    } else
-                    {
+                    } else {
                         NVIC_ENABLE_IRQ(IRQ_CMP0);
                     }
+
                     break;
 
                 default: break;
@@ -78,10 +78,10 @@ void loop() {
         // DEBUG: Print out the first 16 pulses for inspection
         // This will dequeue all pulses in the buffer from processing.
         if (printPulses) {
-            int pulseIdx = 0;
+            int pulse_idx = 0;
             int value;
-            while ((sensor0_width_tk.IsEmpty() != 1) && (pulseIdx < 16)) {
-                if (pulseIdx % 4 == 0) {
+            while ((sensor0_width_tk.IsEmpty() != 1) && (pulse_idx < 16)) {
+                if (pulse_idx % 4 == 0) {
                     Serial.print("\nPulse widths ");
                     printMicroseconds ? Serial.print("(us): "):
                                         Serial.print("(tk): ");
@@ -92,17 +92,17 @@ void loop() {
                 // TODO: Correct for specific master clock speed, assumes 48 MHz
                 if (printMicroseconds) value = value / 48;
                 Serial.printf("%4d ", value);
-                pulseIdx++;
+                pulse_idx++;
             }
 
             // Count up the remaining pulses
             while((sensor0_width_tk.IsEmpty() != 1))
             {
                 sensor0_width_tk.PopBack();
-                pulseIdx++;
+                pulse_idx++;
             }
 
-            Serial.printf("\nPulses in buffer: %d", pulseIdx);
+            Serial.printf("\nPulses in buffer: %d", pulse_idx);
             Serial.printf("\nLast pulse timestamp (tk): %u", sensor0_start_tk.PopBack());
         }
 
@@ -380,13 +380,13 @@ void cmp0_isr() {
     input_data &d = global_input_data[0];
     d.crossings++;
 
-    if (d.rise_time && (cmpState & (sensorActiveHigh ? CMP_SCR_CFF : CMP_SCR_CFR))) { // Fallen edge registered
+    if (d.rise_time && (cmpState & (sensor0_active_high ? CMP_SCR_CFF : CMP_SCR_CFR))) { // Fallen edge registered
         const uint32_t pulse_len = timestamp - d.rise_time;
         process_pulse(d, d.rise_time, pulse_len);
         d.rise_time = 0;
     }
 
-    if (cmpState & ((sensorActiveHigh ? CMP_SCR_CFR : CMP_SCR_CFF) | CMP_SCR_COUT)) { // Rising edge registered and state is now high
+    if (cmpState & ((sensor0_active_high ? CMP_SCR_CFR : CMP_SCR_CFF) | CMP_SCR_COUT)) { // Rising edge registered and state is now high
         d.rise_time = timestamp;
     }
 
@@ -411,16 +411,21 @@ extern "C" void FASTRUN ftm1_isr(void) {
     }
 
     if (FTM1_C1SC & FTM_CSC_CHF) {
+        // Read c0v before c1v to guarantee pulse coherency from FTM1
         uint16_t c0v = FTM1_C0V;
         uint16_t c1v = FTM1_C1V;
 
-        first_edge_tk = c0v | (ftm1_overflow << 16);
-        second_edge_tk = c1v | (ftm1_overflow << 16);
+        // Clear channel flag immediately
         FTM1_C1SC &= ~FTM_CSC_CHF;
 
+        first_edge_tk = c0v | (ftm1_overflow << 16);
+        second_edge_tk = c1v | (ftm1_overflow << 16);
+
         // Need to handle tricky overflow situation
-        // Not properly capturing the CH0-TOF-CH1 event sequence
+        // Not properly capturing the CH0-TOVF-CH1 event sequence
         if (second_edge_tk < first_edge_tk) {
+            // Assumes that no pulses last for more than 1 FTM period (1.36 ms)
+            // Places first edge in the previous 1.36 ms window.
             first_edge_tk = (c0v | ftm1_overflow << 16) - (1 << 16);
         }
 

@@ -5,7 +5,7 @@
 
 extern uint16_t ftm1_overflow;
 extern uint16_t ftm1_overflow_89s;
-extern bool sensorActiveHigh;
+extern bool sensor0_active_high;
 
 const static int num_inputs = 1;
 const static int cycles_buffer_len = 1024;
