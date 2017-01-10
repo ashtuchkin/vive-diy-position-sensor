@@ -1,5 +1,5 @@
 #include "main.h"
-#include "RingBuffer.h"
+#include "ring_buffer.h"
 
 // Comparator-specific data
 input_data global_input_data[num_inputs] = {{
@@ -31,8 +31,8 @@ int32_t timebase_delta_ms = 0;
 int prevCycleId = -1;
 
 // Ring buffers for Lighthouse pulse processing
-RingBuffer* sensor0_start_tk = new RingBuffer;
-RingBuffer* sensor0_width_tk = new RingBuffer;
+RingBuffer<uint32_t, 64> sensor0_start_tk;
+RingBuffer<uint32_t, 64> sensor0_width_tk;
 
 void loop() {
     loopCount++;
@@ -80,14 +80,14 @@ void loop() {
         if (printPulses) {
             int pulseIdx = 0;
             int value;
-            while ((sensor0_width_tk->isEmpty() != 1) && (pulseIdx < 16)) {
+            while ((sensor0_width_tk.IsEmpty() != 1) && (pulseIdx < 16)) {
                 if (pulseIdx % 4 == 0) {
                     Serial.print("\nPulse widths ");
                     printMicroseconds ? Serial.print("(us): "):
                                         Serial.print("(tk): ");
                 }
 
-                value = sensor0_width_tk->read();
+                value = sensor0_width_tk.PopBack();
 
                 // TODO: Correct for specific master clock speed, assumes 48 MHz
                 if (printMicroseconds) value = value / 48;
@@ -96,14 +96,14 @@ void loop() {
             }
 
             // Count up the remaining pulses
-            while((sensor0_width_tk->isEmpty() != 1))
+            while((sensor0_width_tk.IsEmpty() != 1))
             {
-                sensor0_width_tk->read();
+                sensor0_width_tk.PopBack();
                 pulseIdx++;
             }
 
             Serial.printf("\nPulses in buffer: %d", pulseIdx);
-            Serial.printf("\nLast pulse timestamp: %u", sensor0_start_tk->read());
+            Serial.printf("\nLast pulse timestamp (tk): %u", sensor0_start_tk.PopBack());
         }
 
         if (printCycles) {
@@ -176,15 +176,15 @@ void loop() {
             timebase_delta_ms = curMillis - ((FTM1_CNT | (ftm1_overflow << 16)) / 48000);
 
             // Dequeue pending pulses
-            while (sensor0_width_tk->isEmpty() != 1){
+            while (sensor0_width_tk.IsEmpty() != 1){
                 d.crossings++;
-                d.rise_time = sensor0_start_tk->read();
+                d.rise_time = sensor0_start_tk.PopBack();
 
                 // WARNING: process_pulse() currently uses microseconds as the
                 // unit for pulse start and pulse width. This is a 48x loss of
                 // precision than could be obtained using HW timer with ticks
                 // of 48 MHz clock (20.83 ns per tick).
-                process_pulse(d, (d.rise_time / 48) + timebase_delta_ms, (sensor0_width_tk->read() / 48) + timebase_delta_ms);
+                process_pulse(d, (d.rise_time / 48) + timebase_delta_ms, (sensor0_width_tk.PopBack() / 48) + timebase_delta_ms);
             }
         }
 
@@ -426,8 +426,8 @@ extern "C" void FASTRUN ftm1_isr(void) {
         }
 
         pulse_width_tk = second_edge_tk - first_edge_tk;
-        sensor0_start_tk->write(first_edge_tk);
-        sensor0_width_tk->write(pulse_width_tk);
+        sensor0_start_tk.PushFront(first_edge_tk);
+        sensor0_width_tk.PushFront(pulse_width_tk);
 
         ++isrCount;
     }
