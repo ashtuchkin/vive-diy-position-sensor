@@ -157,6 +157,7 @@ void loop() {
             Serial.printf("Loops: %d\n", loopCount); loopCount = 0;
             Serial.printf("Cycles write idx: %d\n", d.cycles_write_idx);
             Serial.printf("Cur Dac level: %d (%d)\n", d.dac_level, getCmpLevel());
+            Serial.printf("Crossings: %d", d.crossings);
         }
 
         digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
