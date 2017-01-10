@@ -129,3 +129,43 @@ TEST_CASE("Using a struct as values", "[ring_buffer]") {
   REQUIRE(popped.c == 6);
 }
 
+TEST_CASE("Popping from a queue without IsFull() check", "[ring_buffer]") {
+  RingBuffer<int, 4> buffer;
+  int value = -1;
+
+  // Push a value, pop it out. Should indicate an available value with true.
+  buffer.PushFront(12);
+  REQUIRE(buffer.PopBack() == 12);
+  REQUIRE(buffer.IsEmpty() == true);
+
+  // Push three, pop them off.
+  buffer.PushFront(13);
+  buffer.PushFront(14);
+  buffer.PushFront(15);
+  REQUIRE(buffer.PopBack() == 13);
+  REQUIRE(buffer.IsEmpty() == false);
+
+  REQUIRE(buffer.PopBack() == 14);
+  REQUIRE(buffer.IsEmpty() == false);
+
+  REQUIRE(buffer.PopBack() == 15);
+  REQUIRE(buffer.IsEmpty() == true);
+
+  // Push five, pop them off.
+  buffer.PushFront(23);
+  buffer.PushFront(24);
+  buffer.PushFront(25);
+  buffer.PushFront(26);
+  buffer.PushFront(27);
+  REQUIRE(buffer.PopBack() == 24);
+  REQUIRE(buffer.IsEmpty() == false);
+
+  REQUIRE(buffer.PopBack() == 25);
+  REQUIRE(buffer.IsEmpty() == false);
+
+  REQUIRE(buffer.PopBack() == 26);
+  REQUIRE(buffer.IsEmpty() == false);
+
+  REQUIRE(buffer.PopBack() == 27);
+  REQUIRE(buffer.IsEmpty() == true);
+}

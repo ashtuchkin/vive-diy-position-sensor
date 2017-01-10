@@ -61,6 +61,13 @@ class RingBuffer {
     return did_not_clobber;
   }
 
+  // Pops and returns the last element. Behaviour is undefined on empty buffers.
+  T PopBack() {
+    int last_item_index = start_ & (num_elements - 1);
+    start_ = NextIndex(start_);
+    return elements_[last_item_index];
+  }
+
   // If there are elements in the buffer, pops the last element, copying it
   // onto *value, and returns true. If the buffer is empty, returns false.
   bool PopBack(T* value) {
