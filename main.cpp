@@ -23,7 +23,7 @@ input_data global_input_data[num_inputs] = {{
 
 // Print loop vars
 bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false;
-bool printSkyview = false, printPulses = false, printMicroseconds = false, useHardwareTimer = false;
+bool printFTM1 = false, printPulses = false, printMicroseconds = false, useHardwareTimer = false;
 unsigned int loopCount = 0, isrCount = 0;
 unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
 int prevCycleId = -1;
@@ -50,7 +50,7 @@ void loop() {
                 case '+': changeCmdDacLevel(d, +1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 case '-': changeCmdDacLevel(d, -1); Serial.printf("DAC level: %d\n", d.dac_level); break;
 
-                case 'a': printSkyview = !printSkyview; break;
+                case 'a': printFTM1 = !printFTM1; break;
                 case 's': printPulses = !printPulses; break;
                 case 'u': printMicroseconds = !printMicroseconds; break;
                 case 'h':
@@ -68,7 +68,7 @@ void loop() {
             }
         }
 
-        if (printSkyview) {
+        if (printFTM1) {
             Serial.printf("\nFTM1 ISR triggers: %d", isrCount);
         }
 
@@ -81,7 +81,7 @@ void loop() {
                     Serial.print("\nPulse widths ");
                     printMicroseconds ? Serial.print("(us): "):
                                         Serial.print("(tk): ");
-                } 
+                }
 
                 value = pulseWidthBuffer->read();
 
