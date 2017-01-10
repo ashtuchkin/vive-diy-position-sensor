@@ -29,5 +29,8 @@ else (NOT ${LOCAL_BUILD})
                  skyview_lighthouse.cc
                  skyview_lighthouse_test.cc)
 
+  add_executable(ring_buffer_test
+                 ring_buffer_test.cc)
+
 endif (NOT ${LOCAL_BUILD})
 

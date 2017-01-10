@@ -23,52 +23,33 @@
  * SOFTWARE.
  */
 
-#ifndef RINGBUFFER_H
-#define RINGBUFFER_H
-
-// include new and delete
-//#include <Arduino.h>
-
-// THE SIZE MUST BE A POWER OF 2!!
-#define RING_BUFFER_DEFAULT_BUFFER_SIZE 256
+#include "RingBuffer.h"
 
 
 
-/** Class RingBuffer implements a circular buffer of fixed size (must be power of 2)
-*   Code adapted from http://en.wikipedia.org/wiki/Circular_buffer#Mirroring
-*/
-class RingBuffer
-{
-    public:
-        //! Default constructor, buffer has a size DEFAULT_BUFFER_SIZE
-        RingBuffer();
+int RingBuffer::isFull() {
+    return (end_ == (start_ ^ size_));
+}
 
-        /** Default destructor */
-        virtual ~RingBuffer();
+int RingBuffer::isEmpty() {
+    return (end_ == start_);
+}
 
-        //! Returns 1 (true) if the buffer is full
-        int isFull();
+void RingBuffer::write(int value) {
+    elements[end_&(size_-1)] = value;
+    if (IsFull()) { /* full, overwrite moves start pointer */
+        start_ = increase(start_);
+    }
+    end_ = increase(end_);
+}
 
-        //! Returns 1 (true) if the buffer is empty
-        int isEmpty();
+int RingBuffer::read() {
+    int result = elements[start_ & (size_ - 1)];
+    start_ = increase(start_);
+    return result;
+}
 
-        //! Write a value into the buffer
-        void write(int value);
-
-        //! Read a value from the buffer
-        int read();
-
-    protected:
-    private:
-
-        int increase(int p);
-
-        int b_size = RING_BUFFER_DEFAULT_BUFFER_SIZE;
-        int b_start = 0;
-        int b_end = 0;
-        //int *elems;
-        int elems[RING_BUFFER_DEFAULT_BUFFER_SIZE];
-};
-
-
-#endif // RINGBUFFER_H
+// increases the pointer modulo 2*size-1
+int RingBuffer::increase(int p) {
+    return (p + 1) & (2 * size_ - 1);
+}
