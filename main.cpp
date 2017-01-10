@@ -28,7 +28,7 @@ unsigned int loopCount = 0, isrCount = 0;
 unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
 int prevCycleId = -1;
 
-// Buffers for Lighthouse Pulse Processor
+// Ring buffers for Lighthouse pulse processing
 RingBuffer *pulseStartBuffer = new RingBuffer;
 RingBuffer *pulseWidthBuffer = new RingBuffer;
 
@@ -70,9 +70,11 @@ void loop() {
 
         if (printFTM1) {
             Serial.printf("\nFTM1 ISR triggers: %d", isrCount);
+            if (useHardwareTimer) Serial.printf("*");
         }
 
-        // DEBUG: Print out the first 8 pulses for inspection
+        // DEBUG: Print out the first 16 pulses for inspection
+        // This will dequeue all pulses in the buffer from processing.
         if (printPulses) {
             int pulseIdx = 0;
             int value;
@@ -166,6 +168,9 @@ void loop() {
         // Process pulses outside of the ISR
         if (useHardwareTimer)
         {
+            // Need to rebase timebase used by the remainder of pulse timing code
+            curMillis = (FTM1_CNT | (ftm1_overflow << 16)) / 48000;
+
             // Dequeue pending pulses
             while (pulseWidthBuffer->isEmpty() != 1){
                 d.crossings++;

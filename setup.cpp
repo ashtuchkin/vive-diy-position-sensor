@@ -2,8 +2,9 @@
 
 uint16_t ftm1_overflow;
 
-// TS3633-CM1 hardware is active low
-// Early Valve sensor and Ash sensor are active high
+// TS3633-CM1 sensor:   active low
+// Valve's sensor:      active high
+// @ashtuchkin sensor:  active high
 bool sensorActiveHigh = false;
 
 void setupComparator() {
@@ -36,7 +37,6 @@ void setupComparator() {
 }
 
 // Setup flex timer for pulse width measurement
-// TODO: Currently only set up for pin 3, FTM1, channel 0 & 1, need to enable for any FTM ch
 bool setupFlexTimer(uint32_t pin = 3) {
     // Derived from https://github.com/tni/teensy-samples/blob/master/input_capture_dma.ino
     // Derived from https://github.com/PaulStoffregen/FreqMeasureMulti
@@ -46,6 +46,7 @@ bool setupFlexTimer(uint32_t pin = 3) {
     // Turn off IRQs for FTM1 during setup
     NVIC_DISABLE_IRQ(IRQ_FTM1);
 
+    // TODO: Currently only set up for pin 3, need to enable for any FTM ch
     switch (pin) {
         // FTM0, channels 0-7
         case 22: channel = 0; CORE_PIN22_CONFIG = PORT_PCR_MUX(4); break;
@@ -122,4 +123,3 @@ void setup() {
 
 // Replace stock yield to make loop() faster.
 void yield(void) { }
-
