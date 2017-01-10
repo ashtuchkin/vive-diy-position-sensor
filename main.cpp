@@ -22,7 +22,8 @@ input_data global_input_data[num_inputs] = {{
 
 
 // Print loop vars
-bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false, printSkyview = false, printPulses = false, printMicroseconds = false, useHardwareTimer = false;
+bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false;
+bool printSkyview = false, printPulses = false, printMicroseconds = false, useHardwareTimer = false;
 unsigned int loopCount = 0, isrCount = 0;
 unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
 int prevCycleId = -1;
@@ -46,21 +47,23 @@ void loop() {
                 case 'w': printCycles = !printCycles; prevCycleId = -1; break;
                 case 'b': printFrames = !printFrames; break;
                 case 'd': printDecoders = !printDecoders; break;
+                case '+': changeCmdDacLevel(d, +1); Serial.printf("DAC level: %d\n", d.dac_level); break;
+                case '-': changeCmdDacLevel(d, -1); Serial.printf("DAC level: %d\n", d.dac_level); break;
+
                 case 'a': printSkyview = !printSkyview; break;
                 case 's': printPulses = !printPulses; break;
                 case 'u': printMicroseconds = !printMicroseconds; break;
                 case 'h':
                     useHardwareTimer = !useHardwareTimer;
-                    if (useHardwareTimer)
-                    {
+
+                    if (useHardwareTimer) {
                         NVIC_DISABLE_IRQ(IRQ_CMP0);
                     } else
                     {
                         NVIC_ENABLE_IRQ(IRQ_CMP0);
                     }
                     break;
-                case '+': changeCmdDacLevel(d, +1); Serial.printf("DAC level: %d\n", d.dac_level); break;
-                case '-': changeCmdDacLevel(d, -1); Serial.printf("DAC level: %d\n", d.dac_level); break;
+
                 default: break;
             }
         }
@@ -74,10 +77,15 @@ void loop() {
             int pulseIdx = 0;
             int value;
             while ((pulseWidthBuffer->isEmpty() != 1) && (pulseIdx < 16)) {
-                if (pulseIdx % 4 == 0) Serial.print("\nPulse widths: ");
+                if (pulseIdx % 4 == 0) {
+                    Serial.print("\nPulse widths ");
+                    printMicroseconds ? Serial.print("(us): "):
+                                        Serial.print("(tk): ");
+                } 
+
                 value = pulseWidthBuffer->read();
 
-                // TODO: Correct for bus speeds
+                // TODO: Correct for specific master clock speed, assumes 48 MHz
                 if (printMicroseconds) value = value / 48;
                 Serial.printf("%4d ", value);
                 pulseIdx++;
@@ -364,7 +372,6 @@ void cmp0_isr() {
     input_data &d = global_input_data[0];
     d.crossings++;
 
-    
     if (d.rise_time && (cmpState & (sensorActiveHigh ? CMP_SCR_CFF : CMP_SCR_CFR))) { // Fallen edge registered
         const uint32_t pulse_len = timestamp - d.rise_time;
         process_pulse(d, d.rise_time, pulse_len);
