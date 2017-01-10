@@ -26,7 +26,7 @@ bool printCountDelta = false, printCycles = false, printFrames = false, printDec
 bool printFTM1 = false, printPulses = false, printMicroseconds = false, useHardwareTimer = true;
 unsigned int loopCount = 0, isrCount = 0;
 unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
-int32_t timebase_delta_ms = 0;
+int32_t timebase_delta_us = 0;
 
 int prevCycleId = -1;
 
@@ -172,8 +172,7 @@ void loop() {
         if (useHardwareTimer)
         {
             // Need to rebase timebase used by the remainder of pulse timing code
-            // Difference between the two timebases in milliseconds
-            timebase_delta_ms = curMillis - ((FTM1_CNT | (ftm1_overflow << 16)) / 48000);
+            timebase_delta_us = curMillis * 1000 - ((FTM1_CNT | (ftm1_overflow << 16)) / 48);
 
             // Dequeue pending pulses
             while (sensor0_width_tk.IsEmpty() != 1){
@@ -184,7 +183,7 @@ void loop() {
                 // unit for pulse start and pulse width. This is a 48x loss of
                 // precision than could be obtained using HW timer with ticks
                 // of 48 MHz clock (20.83 ns per tick).
-                process_pulse(d, (d.rise_time / 48) + timebase_delta_ms, (sensor0_width_tk.PopBack() / 48) + timebase_delta_ms);
+                process_pulse(d, (d.rise_time / 48) + timebase_delta_us, (sensor0_width_tk.PopBack() / 48) + timebase_delta_us);
             }
         }
 
