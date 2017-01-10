@@ -3,6 +3,10 @@
 #include <arm_math.h>
 #include <Arduino.h>
 
+extern uint16_t ftm1_overflow;
+extern uint16_t ftm1_overflow_89s;
+extern bool sensor0_active_high;
+
 const static int num_inputs = 1;
 const static int cycles_buffer_len = 1024;
 
@@ -116,3 +120,5 @@ static inline void changeCmdDacLevel(input_data &d, int delta) {
 static inline int getCmpLevel() {  // Current signal level: 0 or 1
     return CMP0_SCR & CMP_SCR_COUT;
 }
+
+void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len);

@@ -3,7 +3,7 @@
 #  * http://playground.arduino.cc/Code/CmakeBuild
 
 # Toolchain definition
-set(TOOLCHAIN_PREFIX "/usr/local/bin/arm-none-eabi-")
+set(TOOLCHAIN_PREFIX "/usr/local/bin/arm-none-eabi-" CACHE STRING "toolchain-path")
 
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR arm)

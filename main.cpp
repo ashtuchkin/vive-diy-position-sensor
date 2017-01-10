@@ -1,4 +1,5 @@
 #include "main.h"
+#include "ring_buffer.h"
 
 // Comparator-specific data
 input_data global_input_data[num_inputs] = {{
@@ -22,9 +23,16 @@ input_data global_input_data[num_inputs] = {{
 
 // Print loop vars
 bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false;
-unsigned int loopCount = 0;
+bool printFTM1 = false, printPulses = false, printMicroseconds = false, useHardwareTimer = true;
+unsigned int loopCount = 0, isrCount = 0;
 unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
+int32_t timebase_delta_us = 0;
+
 int prevCycleId = -1;
+
+// Ring buffers for Lighthouse pulse processing
+RingBuffer<uint32_t, 64> sensor0_start_tk;
+RingBuffer<uint32_t, 64> sensor0_width_tk;
 
 void loop() {
     loopCount++;
@@ -43,8 +51,59 @@ void loop() {
                 case 'd': printDecoders = !printDecoders; break;
                 case '+': changeCmdDacLevel(d, +1); Serial.printf("DAC level: %d\n", d.dac_level); break;
                 case '-': changeCmdDacLevel(d, -1); Serial.printf("DAC level: %d\n", d.dac_level); break;
+
+                case 'a': printFTM1 = !printFTM1; break;
+                case 's': printPulses = !printPulses; break;
+                case 'u': printMicroseconds = !printMicroseconds; break;
+                case 'h':
+                    useHardwareTimer = !useHardwareTimer;
+
+                    if (useHardwareTimer) {
+                        NVIC_DISABLE_IRQ(IRQ_CMP0);
+                    } else {
+                        NVIC_ENABLE_IRQ(IRQ_CMP0);
+                    }
+
+                    break;
+
                 default: break;
             }
+        }
+
+        if (printFTM1) {
+            Serial.printf("\nFTM1 ISR triggers: %d", isrCount);
+            if (useHardwareTimer) Serial.printf("*");
+        }
+
+        // DEBUG: Print out the first 16 pulses for inspection
+        // This will dequeue all pulses in the buffer from processing.
+        if (printPulses) {
+            int pulse_idx = 0;
+            int value;
+            while ((sensor0_width_tk.IsEmpty() != 1) && (pulse_idx < 16)) {
+                if (pulse_idx % 4 == 0) {
+                    Serial.print("\nPulse widths ");
+                    printMicroseconds ? Serial.print("(us): "):
+                                        Serial.print("(tk): ");
+                }
+
+                value = sensor0_width_tk.PopBack();
+
+                // TODO: Correct for specific master clock speed, assumes 48 MHz
+                if (printMicroseconds) value = value / 48;
+                Serial.printf("%4d ", value);
+                pulse_idx++;
+            }
+
+            // Count up the remaining pulses
+            while((sensor0_width_tk.IsEmpty() != 1))
+            {
+                sensor0_width_tk.PopBack();
+                pulse_idx++;
+            }
+
+            Serial.printf("\nPulses in buffer: %d", pulse_idx);
+            Serial.printf("\nLast pulse timestamp (tk): %u", sensor0_start_tk.PopBack());
         }
 
         if (printCycles) {
@@ -100,6 +159,7 @@ void loop() {
             Serial.printf("Loops: %d\n", loopCount); loopCount = 0;
             Serial.printf("Cycles write idx: %d\n", d.cycles_write_idx);
             Serial.printf("Cur Dac level: %d (%d)\n", d.dac_level, getCmpLevel());
+            Serial.printf("Crossings: %d", d.crossings);
         }
 
         digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
@@ -107,6 +167,25 @@ void loop() {
 
     if (curMillis - prevMillis2 >= 34) {  // 33.33ms => 4 cycles
         prevMillis2 = curMillis;
+
+        // Process pulses outside of the ISR
+        if (useHardwareTimer)
+        {
+            // Need to rebase timebase used by the remainder of pulse timing code
+            timebase_delta_us = curMillis * 1000 - ((FTM1_CNT | (ftm1_overflow << 16)) / 48);
+
+            // Dequeue pending pulses
+            while (sensor0_width_tk.IsEmpty() != 1){
+                d.crossings++;
+                d.rise_time = sensor0_start_tk.PopBack();
+
+                // WARNING: process_pulse() currently uses microseconds as the
+                // unit for pulse start and pulse width. This is a 48x loss of
+                // precision than could be obtained using HW timer with ticks
+                // of 48 MHz clock (20.83 ns per tick).
+                process_pulse(d, (d.rise_time / 48) + timebase_delta_us, (sensor0_width_tk.PopBack() / 48) + timebase_delta_us);
+            }
+        }
 
         /*
         // 1. Comparator level dynamic adjustment.
@@ -294,7 +373,6 @@ inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len
     }
 }
 
-
 void cmp0_isr() {
     const uint32_t timestamp = micros();
     const uint32_t cmpState = CMP0_SCR;
@@ -302,13 +380,13 @@ void cmp0_isr() {
     input_data &d = global_input_data[0];
     d.crossings++;
 
-    if (d.rise_time && (cmpState & CMP_SCR_CFF)) { // Fallen edge registered
+    if (d.rise_time && (cmpState & (sensor0_active_high ? CMP_SCR_CFF : CMP_SCR_CFR))) { // Fallen edge registered
         const uint32_t pulse_len = timestamp - d.rise_time;
         process_pulse(d, d.rise_time, pulse_len);
         d.rise_time = 0;
     }
 
-    if (cmpState & (CMP_SCR_CFR | CMP_SCR_COUT)) { // Rising edge registered and state is now high
+    if (cmpState & ((sensor0_active_high ? CMP_SCR_CFR : CMP_SCR_CFF) | CMP_SCR_COUT)) { // Rising edge registered and state is now high
         d.rise_time = timestamp;
     }
 
@@ -317,3 +395,45 @@ void cmp0_isr() {
 }
 
 
+extern "C" void FASTRUN ftm1_isr(void) {
+    uint32_t first_edge_tk, second_edge_tk, pulse_width_tk;
+
+    // Handle timer overflow in timestamps
+    if (FTM1_SC & FTM_SC_TOF) {
+        ++ftm1_overflow;
+        if (ftm1_overflow == 0) ++ftm1_overflow_89s;
+        FTM1_SC &= ~FTM_SC_TOF;
+    }
+
+    if (FTM1_C0SC & FTM_CSC_CHF) {
+        // Technically do nothing
+        // FTM1_C0SC &= ~FTM_CSC_CHF;
+    }
+
+    if (FTM1_C1SC & FTM_CSC_CHF) {
+        // Read c0v before c1v to guarantee pulse coherency from FTM1
+        uint16_t c0v = FTM1_C0V;
+        uint16_t c1v = FTM1_C1V;
+
+        // Clear channel flag immediately
+        FTM1_C1SC &= ~FTM_CSC_CHF;
+
+        first_edge_tk = c0v | (ftm1_overflow << 16);
+        second_edge_tk = c1v | (ftm1_overflow << 16);
+
+        // Need to handle tricky overflow situation
+        // Not properly capturing the CH0-TOVF-CH1 event sequence
+        if (second_edge_tk < first_edge_tk) {
+            // Assumes that no pulses last for more than 1 FTM period (1.36 ms)
+            // Places first edge in the previous 1.36 ms window.
+            first_edge_tk = (c0v | ftm1_overflow << 16) - (1 << 16);
+        }
+
+        pulse_width_tk = second_edge_tk - first_edge_tk;
+        sensor0_start_tk.PushFront(first_edge_tk);
+        sensor0_width_tk.PushFront(pulse_width_tk);
+
+        ++isrCount;
+    }
+    return;
+}
