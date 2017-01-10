@@ -1,6 +1,7 @@
 #include "main.h"
 
 uint16_t ftm1_overflow;
+uint16_t ftm1_overflow_89s;
 
 // TS3633-CM1 sensor:   active low
 // Valve's sensor:      active high
@@ -85,6 +86,7 @@ bool setupFlexTimer(uint32_t pin = 3) {
 
     // Enable timer overflow interrupts
     ftm1_overflow = 0;
+    ftm1_overflow_89s = 0;
     FTM1_SC |= FTM_SC_TOIE;
 
     // set FTM1 CH0 to dual edge capture enable, paired channels

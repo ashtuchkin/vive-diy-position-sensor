@@ -23,14 +23,16 @@ input_data global_input_data[num_inputs] = {{
 
 // Print loop vars
 bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false;
-bool printFTM1 = false, printPulses = false, printMicroseconds = false, useHardwareTimer = false;
+bool printFTM1 = false, printPulses = false, printMicroseconds = false, useHardwareTimer = true;
 unsigned int loopCount = 0, isrCount = 0;
 unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
+int32_t timebase_delta_ms = 0;
+
 int prevCycleId = -1;
 
 // Ring buffers for Lighthouse pulse processing
-RingBuffer *pulseStartBuffer = new RingBuffer;
-RingBuffer *pulseWidthBuffer = new RingBuffer;
+RingBuffer* sensor0_start_tk = new RingBuffer;
+RingBuffer* sensor0_width_tk = new RingBuffer;
 
 void loop() {
     loopCount++;
@@ -78,14 +80,14 @@ void loop() {
         if (printPulses) {
             int pulseIdx = 0;
             int value;
-            while ((pulseWidthBuffer->isEmpty() != 1) && (pulseIdx < 16)) {
+            while ((sensor0_width_tk->isEmpty() != 1) && (pulseIdx < 16)) {
                 if (pulseIdx % 4 == 0) {
                     Serial.print("\nPulse widths ");
                     printMicroseconds ? Serial.print("(us): "):
                                         Serial.print("(tk): ");
                 }
 
-                value = pulseWidthBuffer->read();
+                value = sensor0_width_tk->read();
 
                 // TODO: Correct for specific master clock speed, assumes 48 MHz
                 if (printMicroseconds) value = value / 48;
@@ -94,14 +96,14 @@ void loop() {
             }
 
             // Count up the remaining pulses
-            while((pulseWidthBuffer->isEmpty() != 1))
+            while((sensor0_width_tk->isEmpty() != 1))
             {
-                pulseWidthBuffer->read();
+                sensor0_width_tk->read();
                 pulseIdx++;
             }
 
             Serial.printf("\nPulses in buffer: %d", pulseIdx);
-            Serial.printf("\nLast pulse timestamp: %u", pulseStartBuffer->read());
+            Serial.printf("\nLast pulse timestamp: %u", sensor0_start_tk->read());
         }
 
         if (printCycles) {
@@ -170,18 +172,19 @@ void loop() {
         if (useHardwareTimer)
         {
             // Need to rebase timebase used by the remainder of pulse timing code
-            curMillis = (FTM1_CNT | (ftm1_overflow << 16)) / 48000;
+            // Difference between the two timebases in milliseconds
+            timebase_delta_ms = curMillis - ((FTM1_CNT | (ftm1_overflow << 16)) / 48000);
 
             // Dequeue pending pulses
-            while (pulseWidthBuffer->isEmpty() != 1){
+            while (sensor0_width_tk->isEmpty() != 1){
                 d.crossings++;
-                d.rise_time = pulseStartBuffer->read();
+                d.rise_time = sensor0_start_tk->read();
 
                 // WARNING: process_pulse() currently uses microseconds as the
                 // unit for pulse start and pulse width. This is a 48x loss of
                 // precision than could be obtained using HW timer with ticks
                 // of 48 MHz clock (20.83 ns per tick).
-                process_pulse(d, d.rise_time / 48, pulseWidthBuffer->read() / 48);
+                process_pulse(d, (d.rise_time / 48) + timebase_delta_ms, (sensor0_width_tk->read() / 48) + timebase_delta_ms);
             }
         }
 
@@ -394,11 +397,12 @@ void cmp0_isr() {
 
 
 extern "C" void FASTRUN ftm1_isr(void) {
-    uint32_t first_edge_timestamp, second_edge_timestamp, pulse_width;
+    uint32_t first_edge_tk, second_edge_tk, pulse_width_tk;
 
     // Handle timer overflow in timestamps
     if (FTM1_SC & FTM_SC_TOF) {
         ++ftm1_overflow;
+        if (ftm1_overflow == 0) ++ftm1_overflow_89s;
         FTM1_SC &= ~FTM_SC_TOF;
     }
 
@@ -411,19 +415,19 @@ extern "C" void FASTRUN ftm1_isr(void) {
         uint16_t c0v = FTM1_C0V;
         uint16_t c1v = FTM1_C1V;
 
-        first_edge_timestamp = c0v | (ftm1_overflow << 16);
-        second_edge_timestamp = c1v | (ftm1_overflow << 16);
+        first_edge_tk = c0v | (ftm1_overflow << 16);
+        second_edge_tk = c1v | (ftm1_overflow << 16);
         FTM1_C1SC &= ~FTM_CSC_CHF;
 
         // Need to handle tricky overflow situation
         // Not properly capturing the CH0-TOF-CH1 event sequence
-        if (second_edge_timestamp < first_edge_timestamp) {
-            first_edge_timestamp = (c0v | ftm1_overflow << 16) - (1 << 16);
+        if (second_edge_tk < first_edge_tk) {
+            first_edge_tk = (c0v | ftm1_overflow << 16) - (1 << 16);
         }
 
-        pulse_width = second_edge_timestamp - first_edge_timestamp;
-        pulseStartBuffer->write(first_edge_timestamp);
-        pulseWidthBuffer->write(pulse_width);
+        pulse_width_tk = second_edge_tk - first_edge_tk;
+        sensor0_start_tk->write(first_edge_tk);
+        sensor0_width_tk->write(pulse_width_tk);
 
         ++isrCount;
     }

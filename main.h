@@ -4,6 +4,7 @@
 #include <Arduino.h>
 
 extern uint16_t ftm1_overflow;
+extern uint16_t ftm1_overflow_89s;
 extern bool sensorActiveHigh;
 
 const static int num_inputs = 1;
