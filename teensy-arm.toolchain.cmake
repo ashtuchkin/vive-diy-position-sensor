@@ -2,23 +2,38 @@
 #  * https://github.com/xya/teensy-cmake
 #  * http://playground.arduino.cc/Code/CmakeBuild
 
-# Toolchain definition
-set(TOOLCHAIN_PREFIX "/usr/local/bin/arm-none-eabi-")
-
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR arm)
 set(CMAKE_CROSSCOMPILING 1)
 
-set(CMAKE_C_COMPILER   "${TOOLCHAIN_PREFIX}gcc" CACHE PATH "gcc" FORCE)
-set(CMAKE_CXX_COMPILER "${TOOLCHAIN_PREFIX}g++" CACHE PATH "g++" FORCE)
-set(CMAKE_AR           "${TOOLCHAIN_PREFIX}ar" CACHE PATH "ar" FORCE)
-set(CMAKE_LINKER       "${TOOLCHAIN_PREFIX}ld" CACHE PATH "ld" FORCE)
-set(CMAKE_NM           "${TOOLCHAIN_PREFIX}nm" CACHE PATH "nm" FORCE)
-set(CMAKE_OBJCOPY      "${TOOLCHAIN_PREFIX}objcopy" CACHE PATH "objcopy" FORCE)
-set(CMAKE_OBJDUMP      "${TOOLCHAIN_PREFIX}objdump" CACHE PATH "objdump" FORCE)
-set(CMAKE_STRIP        "${TOOLCHAIN_PREFIX}strip" CACHE PATH "strip" FORCE)
-set(CMAKE_PRINT_SIZE   "${TOOLCHAIN_PREFIX}size" CACHE PATH "size" FORCE)
-set(CMAKE_RANLIB       "${TOOLCHAIN_PREFIX}ranlib" CACHE PATH "ranlib" FORCE)
+set(TOOLCHAIN_TRIPLE "arm-none-eabi-" CACHE STRING "Triple prefix for arm crosscompiling tools")
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+    set(TOOLCHAIN_SUFFIX ".exe" CACHE STRING "Toolchain executable file extension")
+else()
+    set(TOOLCHAIN_SUFFIX "" CACHE STRING "Toolchain executable file extension")
+endif()
+
+# Search default paths for the GNU ARM Embedded Toolchain (https://developer.arm.com/open-source/gnu-toolchain/gnu-rm)
+# This will need to be changed if you have it in a different directory.
+find_path(TOOLCHAIN_BIN_PATH "${TOOLCHAIN_TRIPLE}gcc${TOOLCHAIN_SUFFIX}"
+    PATHS "/usr/local/bin"                                       # Linux, Mac
+    PATHS "C:/Program Files (x86)/GNU Tools ARM Embedded/*/bin"  # Default installation directory on Windows
+    DOC "Toolchain binaries directory")
+
+if(NOT TOOLCHAIN_BIN_PATH)
+    message(FATAL_ERROR "GNU ARM Embedded Toolchain not found. Please install it and provide its /bin directory as a TOOLCHAIN_BIN_PATH variable.")
+endif()
+
+set(CMAKE_C_COMPILER   "${TOOLCHAIN_BIN_PATH}/${TOOLCHAIN_TRIPLE}gcc${TOOLCHAIN_SUFFIX}" CACHE PATH "gcc")
+set(CMAKE_CXX_COMPILER "${TOOLCHAIN_BIN_PATH}/${TOOLCHAIN_TRIPLE}g++${TOOLCHAIN_SUFFIX}" CACHE PATH "g++")
+set(CMAKE_AR           "${TOOLCHAIN_BIN_PATH}/${TOOLCHAIN_TRIPLE}ar${TOOLCHAIN_SUFFIX}" CACHE PATH "ar")
+set(CMAKE_LINKER       "${TOOLCHAIN_BIN_PATH}/${TOOLCHAIN_TRIPLE}ld${TOOLCHAIN_SUFFIX}" CACHE PATH "ld")
+set(CMAKE_NM           "${TOOLCHAIN_BIN_PATH}/${TOOLCHAIN_TRIPLE}nm${TOOLCHAIN_SUFFIX}" CACHE PATH "nm")
+set(CMAKE_OBJCOPY      "${TOOLCHAIN_BIN_PATH}/${TOOLCHAIN_TRIPLE}objcopy${TOOLCHAIN_SUFFIX}" CACHE PATH "objcopy")
+set(CMAKE_OBJDUMP      "${TOOLCHAIN_BIN_PATH}/${TOOLCHAIN_TRIPLE}objdump${TOOLCHAIN_SUFFIX}" CACHE PATH "objdump")
+set(CMAKE_STRIP        "${TOOLCHAIN_BIN_PATH}/${TOOLCHAIN_TRIPLE}strip${TOOLCHAIN_SUFFIX}" CACHE PATH "strip")
+set(CMAKE_PRINT_SIZE   "${TOOLCHAIN_BIN_PATH}/${TOOLCHAIN_TRIPLE}size${TOOLCHAIN_SUFFIX}" CACHE PATH "size")
+set(CMAKE_RANLIB       "${TOOLCHAIN_BIN_PATH}/${TOOLCHAIN_TRIPLE}ranlib${TOOLCHAIN_SUFFIX}" CACHE PATH "ranlib")
 
 
 # Teensy 3.1 settings
@@ -66,10 +81,6 @@ add_definitions("-DF_CPU=${TEENSY_FREQUENCY}000000")
 add_definitions("-DLAYOUT_US_ENGLISH")
 add_definitions("-MMD")
 
-
-# See https://github.com/Koromix/ty
-set(TY_EXECUTABLE "/usr/local/bin/tyc" CACHE FILEPATH "Path to the 'tyc' executable that can upload programs to the Teensy")
-
 # Define target for the Teensy 'core' library.
 # CMake does a lot of compiler checks which include toolchain file, so be careful to define it only once and only
 # for the actual source (not sample programs).
@@ -89,9 +100,14 @@ function(add_firmware_targets TARGET_NAME)
     # Generate the hex firmware files that can be flashed to the MCU.
     set(EEPROM_OPTS -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0)
     set(HEX_OPTS -O ihex -R .eeprom)
+
+    if(NOT (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows"))
+        set(PROCESS_SIZE_CMD_OUTPUT | tail -1 | xargs bash -c [[ TEXT=$0\; DATA=$1\; BSS=$2\; TOTAL_FLASH=262144\; TOTAL_RAM=65536\; FLASH=$((TEXT+DATA))\; RAM=$((DATA+BSS))\; echo "FLASH: $FLASH ($((FLASH*100/TOTAL_FLASH))%), RAM: $RAM ($((RAM*100/TOTAL_RAM))%), Free RAM: $((TOTAL_RAM-RAM))" ]])
+    endif()
+
     add_custom_target(${TARGET_NAME}_Firmware ALL
             COMMENT "Firmware size:"
-            COMMAND ${CMAKE_PRINT_SIZE} $<TARGET_FILE_NAME:${TARGET_NAME}> | tail -1 | xargs bash -c "TEXT=$0; DATA=$1; BSS=$2; TOTAL_FLASH=262144; TOTAL_RAM=65536; FLASH=$((TEXT+DATA)); RAM=$((DATA+BSS)); echo \"FLASH: $FLASH ($((FLASH*100/TOTAL_FLASH))%); RAM: $RAM ($((RAM*100/TOTAL_RAM))%); Free RAM: $((TOTAL_RAM-RAM))\";"
+            COMMAND ${CMAKE_PRINT_SIZE} $<TARGET_FILE_NAME:${TARGET_NAME}> ${PROCESS_SIZE_CMD_OUTPUT}
             COMMAND ${CMAKE_OBJCOPY} ${EEPROM_OPTS} $<TARGET_FILE:${TARGET_NAME}> ${TARGET_NAME}.eep
             COMMAND ${CMAKE_OBJCOPY} ${HEX_OPTS} $<TARGET_FILE:${TARGET_NAME}> ${TARGET_NAME}.hex
             VERBATIM)
@@ -99,11 +115,16 @@ function(add_firmware_targets TARGET_NAME)
     add_custom_target(${TARGET_NAME}_Assembler
             COMMAND ${CMAKE_OBJDUMP} -d $<TARGET_FILE_NAME:${TARGET_NAME}> > ${CMAKE_SOURCE_DIR}/build/source.S )
 
-    if(EXISTS "${TY_EXECUTABLE}")
+    # See https://github.com/Koromix/ty
+    find_file(TY_EXECUTABLE tyc 
+        PATHS "/usr/local/bin" 
+        DOC "Path to the 'tyc' executable that can upload programs to the Teensy")
+
+    if(TY_EXECUTABLE)
         add_custom_target(${TARGET_NAME}_Upload
                 COMMAND "${TY_EXECUTABLE}" upload ${TARGET_NAME}.hex)
         add_dependencies(${TARGET_NAME}_Upload ${TARGET_NAME}_Firmware)
-    endif(EXISTS "${TY_EXECUTABLE}")
+    endif()
 endfunction(add_firmware_targets)
 
 
