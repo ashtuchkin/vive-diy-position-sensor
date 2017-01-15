@@ -102,7 +102,7 @@ function(add_firmware_targets TARGET_NAME)
     set(HEX_OPTS -O ihex -R .eeprom)
 
     if(NOT (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows"))
-        set(PROCESS_SIZE_CMD_OUTPUT [[ | tail -1 | xargs bash -c "TEXT=$0; DATA=$1; BSS=$2; TOTAL_FLASH=262144; TOTAL_RAM=65536; FLASH=$((TEXT+DATA)); RAM=$((DATA+BSS)); echo \"FLASH: $FLASH ($((FLASH*100/TOTAL_FLASH))%); RAM: $RAM ($((RAM*100/TOTAL_RAM))%); Free RAM: $((TOTAL_RAM-RAM))\";" ]])
+        set(PROCESS_SIZE_CMD_OUTPUT | tail -1 | xargs bash -c [[ TEXT=$0\; DATA=$1\; BSS=$2\; TOTAL_FLASH=262144\; TOTAL_RAM=65536\; FLASH=$((TEXT+DATA))\; RAM=$((DATA+BSS))\; echo "FLASH: $FLASH ($((FLASH*100/TOTAL_FLASH))%), RAM: $RAM ($((RAM*100/TOTAL_RAM))%), Free RAM: $((TOTAL_RAM-RAM))" ]])
     endif()
 
     add_custom_target(${TARGET_NAME}_Firmware ALL
