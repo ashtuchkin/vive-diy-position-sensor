@@ -1,5 +1,8 @@
 
 # CLion/Idea files:
-**/.idea/workspace.xml
-**/.idea/tasks.xml
-**/.idea/dictionaries
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/dictionaries
+
+# Visual Studio Code files:
+.vscode
