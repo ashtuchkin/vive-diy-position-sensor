@@ -133,10 +133,10 @@ as Mavlink ATT_POS_MOCAP message to UART port (see mavlink.cpp).
 NOTE: Currently, base station positions and direction matrices are hardcoded in geometry.cpp (`lightsources`). You'll need to 
 adjust it for your setup. See [#2](//github.com/ashtuchkin/vive-diy-position-sensor/issues/2).
 
-### Installation instructions
+### Installation on macOS, Linux
 
 Prerequisites:
- * [gcc-arm-embedded](https://launchpad.net/gcc-arm-embedded) toolchain. Can be installed on Mac with `brew cask install gcc-arm-embedded`.
+ * [GNU ARM Embedded toolchain](https://launchpad.net/gcc-arm-embedded). Can be installed on Mac with `brew cask install gcc-arm-embedded`.
    I'm developing with version 5_4-2016q3, but other versions should work too.
  * CMake 3.5+ `brew install cmake`
  * Command line uploader/monitor: [ty](https://github.com/Koromix/ty). See build instructions in the repo.
@@ -158,4 +158,20 @@ $ make vive-diy-position-sensor_Upload  # Upload to Teensy
 $ tyc monitor  # Serial console to Teensy
 ```
 
-## Discussions
+### Installation on Windows
+
+I haven't been able to make it work in Visual Studio, so providing command line build solution.
+
+Prerequisites:
+ * [GNU ARM Embedded toolchain](https://developer.arm.com/open-source/gnu-toolchain/gnu-rm). Windows 32 bit installer is fine.
+ * [CMake 3.5+](https://cmake.org/download/). Make sure it's in your %PATH%.
+ * [Ninja build tool](https://ninja-build.org/). Copy binary in any location in your %PATH%.
+
+Getting the code is the same as above. GitHub client for Windows will make it even easier.
+
+Building firmware:
+```
+cd build
+cmake -G Ninja ..
+ninja  # Build firmware. Will generate "vive-diy-position-sensor.hex" in current directory.
+```
