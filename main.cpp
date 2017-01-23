@@ -1,233 +1,160 @@
 #include "main.h"
+#include "settings.h"
 
-// Comparator-specific data
-input_data global_input_data[num_inputs] = {{
-    // rise_start, dac_level, fix_acquired, fix_cycle_offset
-    // dac_level = 1V = (1.0/3.3*64) = 20
-    0, 20, false, 0,
+// Input-specific data
+input_data global_input_data[max_num_inputs] = {};
 
-    // crossings, small_pulses, big_pulses, fake_big_pulses
-    0, 0, 0, 0,
+// Debugging state.
+uint32_t active_input_idx = 0;  // Active input for which we print values.
+bool printPosition = true;
 
-    // last_cycle_time, id, cycle
-    0, 0, {},
+// Process debugging input/output.
+void debug_io(Stream &stream) {
+    // State of debugging. These values are kept between calls to debug_io().
+    static bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false;
+    static int prevCycleId = -1;
 
-    // cycles.
-    0, 0, 0, {},
+    if (settings.input_count == 0)
+        stream.printf("Error: No inputs configured. Please enter '!' to go to configuration mode and setup at least one input.\n");
 
-    // decoders
-    {}
-}};
-
-
-// Print loop vars
-bool printCountDelta = false, printCycles = false, printFrames = false, printDecoders = false;
-unsigned int loopCount = 0;
-unsigned int prevMillis = 0, prevMillis2 = 0, curMillis;
-int prevCycleId = -1;
-
-void loop() {
-    loopCount++;
-    curMillis = millis();
-    input_data &d = global_input_data[0];
-
-    process_incoming_mavlink_messages();
-
-    if (curMillis - prevMillis >= 1000) {
-        prevMillis = curMillis;
-        while (Serial.available()) {
-            switch (Serial.read()) {
+    // Process input. All commands are single characters, usually followed by 'enter' key.
+    while (stream.available()) {
+        char c = stream.read();
+        if ('0' <= c && c <= '9') { // Switch active input.
+            uint32_t idx = c - '0';
+            if (idx < settings.input_count) {
+                active_input_idx = idx;
+                stream.printf("Switched active input to %d\n", active_input_idx);
+            }
+            else
+                stream.printf("Invalid input number. Up to %d are allowed.\n", settings.input_count-1);
+        } else {
+            switch (c) {
                 case 'q': printCountDelta = !printCountDelta; break;
                 case 'w': printCycles = !printCycles; prevCycleId = -1; break;
                 case 'b': printFrames = !printFrames; break;
                 case 'd': printDecoders = !printDecoders; break;
-                case '+': changeCmdDacLevel(d, +1); Serial.printf("DAC level: %d\n", d.dac_level); break;
-                case '-': changeCmdDacLevel(d, -1); Serial.printf("DAC level: %d\n", d.dac_level); break;
-                default: break;
+                case 'p': printPosition = !printPosition; break;
+                case '+': changeCmpThreshold(active_input_idx, +1); stream.printf("Threshold level: %d\n", getCmpThreshold(active_input_idx)); break;
+                case '-': changeCmpThreshold(active_input_idx, -1); stream.printf("Threshold level: %d\n", getCmpThreshold(active_input_idx)); break;
+                case '!': settings.restart_in_configuration_mode(); break;
             }
         }
-
-        if (printCycles) {
-            for (; d.cycles_read_idx != d.cycles_write_idx; INC_CONSTRAINED(d.cycles_read_idx, cycles_buffer_len)) {
-                cycle &c = d.cycles[d.cycles_read_idx];
-                if (c.phase_id == 0) {
-                    Serial.println("\n==================================");
-                    prevCycleId = -1;
-                }
-                while (prevCycleId != -1 && prevCycleId+1 < (int)c.phase_id) {
-                    prevCycleId++;
-                    Serial.printf("%d                  |", prevCycleId % 4);
-                    if (prevCycleId % 4 == 3)
-                        Serial.println();
-                }
-                prevCycleId = (int)c.phase_id;
-                char ch = (d.fix_acquired && d.fix_cycle_offset == c.phase_id % 4) ? '*' : ' ';
-                Serial.printf("%d%c %2d %3d %3d %4d |", c.phase_id % 4, ch, c.dac_level, c.first_pulse_len, c.second_pulse_len, c.laser_pulse_pos);
-                if (prevCycleId % 4 == 3)
-                    Serial.println();
-            }
-        }
-
-        if (printDecoders) {
-            for (int i = 0; i < num_big_pulses_in_cycle; i++) {
-                decoder &dec = d.decoders[i];
-                Serial.printf("DECODER %d: ", i);
-                for (int j = 0; j < num_cycle_phases; j++) {
-                    bit_decoder &bit_dec = dec.bit_decoders[j];
-                    Serial.printf("%3d, ", bit_dec.center_pulse_len >> 4);
-                }
-                Serial.println();
-            }
-        }
-
-        if (printFrames) {
-            for (int i = 0; i < num_big_pulses_in_cycle; i++) {
-                decoder &dec = d.decoders[i];
-                for (; dec.read_data_frames_idx != dec.write_data_frames_idx; INC_CONSTRAINED(dec.read_data_frames_idx, num_data_frames)) {
-                    data_frame &frame = dec.data_frames[dec.read_data_frames_idx];
-                    Serial.printf("FRAME %d (%d): ", i, frame.data_len);
-                    for (int j = 0; j < frame.data_len; j++) {
-                        Serial.print(frame.data[j], HEX);
-                        Serial.print(" ");
-                    }
-                    Serial.println();
-                }
-            }
-        }
-
-        if (printCountDelta) {
-            Serial.println();
-            Serial.printf("Loops: %d\n", loopCount); loopCount = 0;
-            Serial.printf("Cycles write idx: %d\n", d.cycles_write_idx);
-            Serial.printf("Cur Dac level: %d (%d)\n", d.dac_level, getCmpLevel());
-        }
-
-        digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
     }
 
-    if (curMillis - prevMillis2 >= 34) {  // 33.33ms => 4 cycles
-        prevMillis2 = curMillis;
+    // Print different kinds of debug information.
+    input_data &d = global_input_data[active_input_idx];
+    if (printCountDelta) {
+        stream.println();
+        stream.printf("Pulses write idx: %d\n", d.pulses_write_idx);
+        stream.printf("Cycles write idx: %d\n", d.cycles_write_idx);
+        stream.printf("Threshold level: %d (%d)\n", getCmpThreshold(active_input_idx), getCmpLevel(active_input_idx));
+    }
 
-        /*
-        // 1. Comparator level dynamic adjustment.
-        __disable_irq();
-        uint32_t crossings = d.crossings; d.crossings = 0;
-        uint32_t big_pulses = d.big_pulses; d.big_pulses = 0;
-        uint32_t small_pulses = d.small_pulses; d.small_pulses = 0;
-        //uint32_t fake_big_pulses = d.fake_big_pulses; d.fake_big_pulses = 0;
-        __enable_irq();
-
-        if (crossings > 100) { // Comparator level is at the background noise level. Try to increase it.
-            changeCmdDacLevel(d, +3);
-
-        } else if (crossings == 0) { // No crossings of comparator level => too high or too low.
-            if (getCmpLevel() == 1) { // Level is too low
-                changeCmdDacLevel(d, +16);
-            } else { // Level is too high
-                changeCmdDacLevel(d, -9);
+    if (printCycles) {
+        for (; d.cycles_read_idx != d.cycles_write_idx; INC_CONSTRAINED(d.cycles_read_idx, cycles_buffer_len)) {
+            cycle &c = d.cycles[d.cycles_read_idx];
+            if (c.phase_id == 0) {
+                stream.println("\n==================================");
+                prevCycleId = -1;
             }
-        } else {
-
-            if (big_pulses <= 6) {
-                changeCmdDacLevel(d, -4);
-            } else if (big_pulses > 10) {
-                changeCmdDacLevel(d, +4);
-            } else if (small_pulses < 4) {
-
-                // Fine tune - we need 4 small pulses.
-                changeCmdDacLevel(d, -1);
+            while (prevCycleId != -1 && prevCycleId+1 < (int)c.phase_id) {
+                prevCycleId++;
+                stream.printf("%d                  |", prevCycleId % 4);
+                if (prevCycleId % 4 == 3)
+                    stream.println();
             }
+            prevCycleId = (int)c.phase_id;
+            char ch = (d.fix_acquired && d.fix_cycle_offset == c.phase_id % 4) ? '*' : ' ';
+            stream.printf("%d%c %2d %3d %3d %4d |", c.phase_id % 4, ch, c.cmp_threshold, c.first_pulse_len, c.second_pulse_len, c.laser_pulse_pos);
+            if (prevCycleId % 4 == 3)
+                stream.println();
         }
-        */
+    }
 
-        // 2. Fix flag & fix_cycle_offset
-        if (d.last_cycle_id > 30 && (curMillis - d.last_cycle_time / 1000) < 100) {
-            if (!d.fix_acquired) {
-                bool invalid_pulse_lens = false;
-                uint32_t min_idxes[2];
-                for (int i = 0; i < num_big_pulses_in_cycle && !invalid_pulse_lens; i++) {
-                    decoder &dec = d.decoders[i];
-
-                    // a. Find minimum len in bit_decoders
-                    uint32_t min_idx = 0;
-                    for (uint32_t j = 1; j < num_cycle_phases; j++)
-                        if (dec.bit_decoders[j].center_pulse_len < dec.bit_decoders[min_idx].center_pulse_len)
-                            min_idx = j;
-
-                    min_idxes[i] = min_idx;
-
-                    // b. Check that delta lens are as expected (10 - 30 - 10)
-                    uint32_t cur_idx = min_idx;
-                    int last_len = dec.bit_decoders[cur_idx].center_pulse_len;
-                    static const int valid_deltas[num_cycle_phases - 1] = {10, 30, 10};
-                    for (uint32_t j = 0; j < num_cycle_phases - 1; j++) {
-                        INC_CONSTRAINED(cur_idx, num_cycle_phases);
-                        int cur_len = dec.bit_decoders[cur_idx].center_pulse_len;
-                        if (abs(((cur_len - last_len) >> 4) - valid_deltas[j]) > 3) {
-                            invalid_pulse_lens = true;
-                            break;
-                        }
-                        last_len = cur_len;
-                    }
-                }
-
-                if (!invalid_pulse_lens && abs((int)min_idxes[0] - (int)min_idxes[1]) == 2) {
-                    // We've got a valid fix for both sources
-                    d.fix_acquired = true;
-                    d.fix_cycle_offset = min_idxes[0];
-                    d.cycles_read_geom_idx = d.cycles_write_idx;
-                }
+    if (printDecoders) {
+        for (int i = 0; i < num_big_pulses_in_cycle; i++) {
+            decoder &dec = d.decoders[i];
+            stream.printf("DECODER %d: ", i);
+            for (int j = 0; j < num_cycle_phases; j++) {
+                bit_decoder &bit_dec = dec.bit_decoders[j];
+                stream.printf("%3d, ", bit_dec.center_pulse_len >> 4);
             }
-        } else {
-            d.fix_acquired = false;
-            for (int i = 0; i < num_cycle_phases; i++) {
-                d.angle_timestamps[i] = 0;
-                d.angle_lens[i] = 0;
-            }
-            d.angle_last_timestamp = 0;
-            d.angle_last_processed_timestamp = 0;
+            stream.println();
         }
+    }
 
-        // 3. Read current angles and calculate geometry
-        if (d.fix_acquired && d.angle_last_timestamp > d.angle_last_processed_timestamp) {
-            bool have_valid_input_point = true;
-            for (int i = 0; i < num_cycle_phases && have_valid_input_point; i++)
-                if (d.angle_timestamps[i]/1000 < curMillis - 100)
-                    have_valid_input_point = false;
-
-            if (have_valid_input_point) {
-
-                // Convert timing to 3d coordinates in NED frame.
-                float ned[3], dist;
-                calculate_3d_point(d, &ned, &dist);
-
-                digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
-                Serial.printf("Position: %.3f %.3f %.3f ; dist= %.3f\n", ned[0], ned[1], ned[2], dist);
-                
-                if (d.angle_last_timestamp - d.angle_last_processed_timestamp > 500000 ||
-                       (fabsf(ned[0] - d.last_ned[0]) < max_position_jump &&
-                        fabsf(ned[1] - d.last_ned[1]) < max_position_jump &&
-                        fabsf(ned[2] - d.last_ned[2]) < max_position_jump)) {
-
-                    // Point is valid; Send position.
-                    send_mavlink_position(ned);
-                    for (int i = 0; i < 3; i++)
-                        d.last_ned[i] = ned[i];
-                    d.angle_last_processed_timestamp = d.angle_last_timestamp;
-                } else {
-                    Serial.printf("Invalid position: too far from previous one");
-                }
+    if (printFrames) {
+        for (int i = 0; i < num_big_pulses_in_cycle; i++) {
+            decoder &dec = d.decoders[i];
+            for (; dec.read_data_frames_idx != dec.write_data_frames_idx; INC_CONSTRAINED(dec.read_data_frames_idx, num_data_frames)) {
+                data_frame &frame = dec.data_frames[dec.read_data_frames_idx];
+                stream.printf("FRAME %d (%d bytes):", i, frame.data_len);
+                for (int j = 0; j < frame.data_len; j++)
+                    stream.printf(" %02X", frame.data[j]);
+                stream.println();
             }
         }
     }
 }
 
-inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len) {
+// Update whether fix is acquired for given input.
+void update_fix_acquired(input_data &d, uint32_t cur_millis) {
+    // We say that we have a fix after 30 correct cycles and last correct cycle less than 100ms away.
+    if (d.last_cycle_id > 30 && (cur_millis - d.last_cycle_time / 1000) < 100) {
+        if (!d.fix_acquired) {
+            bool invalid_pulse_lens = false;
+            uint32_t min_idxes[2];
+            for (int i = 0; i < num_big_pulses_in_cycle && !invalid_pulse_lens; i++) {
+                decoder &dec = d.decoders[i];
+
+                // a. Find minimum len in bit_decoders
+                uint32_t min_idx = 0;
+                for (uint32_t j = 1; j < num_cycle_phases; j++)
+                    if (dec.bit_decoders[j].center_pulse_len < dec.bit_decoders[min_idx].center_pulse_len)
+                        min_idx = j;
+
+                min_idxes[i] = min_idx;
+
+                // b. Check that delta lens are as expected (10 - 30 - 10)
+                uint32_t cur_idx = min_idx;
+                int last_len = dec.bit_decoders[cur_idx].center_pulse_len;
+                static const int valid_deltas[num_cycle_phases - 1] = {10, 30, 10};
+                for (uint32_t j = 0; j < num_cycle_phases - 1; j++) {
+                    INC_CONSTRAINED(cur_idx, num_cycle_phases);
+                    int cur_len = dec.bit_decoders[cur_idx].center_pulse_len;
+                    if (abs(((cur_len - last_len) >> 4) - valid_deltas[j]) > 3) {
+                        invalid_pulse_lens = true;
+                        break;
+                    }
+                    last_len = cur_len;
+                }
+            }
+
+            if (!invalid_pulse_lens && abs((int)min_idxes[0] - (int)min_idxes[1]) == 2) {
+                // We've got a valid fix for both sources
+                d.fix_acquired = true;
+                d.fix_cycle_offset = min_idxes[0];
+            }
+        }
+    } else {
+        d.fix_acquired = false;
+        for (int i = 0; i < num_cycle_phases; i++) {
+            d.angle_timestamps[i] = 0;
+            d.angle_lens[i] = 0;
+        }
+        d.angle_last_timestamp = 0;
+        d.angle_last_processed_timestamp = 0;
+    }
+}
+
+void process_pulse(uint32_t input_idx, uint32_t start_time, uint32_t pulse_len) {
+    input_data &d = global_input_data[input_idx];
     cycle &cur_cycle = d.cur_cycle;
 
     if (pulse_len >= max_big_pulse_len) {
         // Ignore it.
-    } else if (pulse_len >= min_big_pulse_len) { // Large pulse
+    } else if (pulse_len >= min_big_pulse_len) { // Wide pulse - likely sync pulse
         d.big_pulses++;
         uint32_t time_from_cycle_start = start_time - cur_cycle.start_time;
         uint32_t delta_second_cycle = time_from_cycle_start - (second_big_pulse_delay - 20);
@@ -268,7 +195,7 @@ inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len
                 cur_cycle.start_time = start_time;
                 cur_cycle.first_pulse_len = pulse_len;
                 cur_cycle.phase_id = id;
-                cur_cycle.dac_level = d.dac_level;
+                cur_cycle.cmp_threshold = getCmpThreshold(input_idx);
             } else {
                 // Ignore current pulse, wait for other ones.
                 d.fake_big_pulses++;
@@ -280,10 +207,10 @@ inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len
             cur_cycle.start_time = start_time;
             cur_cycle.first_pulse_len = pulse_len;
             cur_cycle.phase_id = 0;
-            cur_cycle.dac_level = d.dac_level;
+            cur_cycle.cmp_threshold = getCmpThreshold(input_idx);
         }
 
-    } else if (pulse_len >= min_pulse_len) { // Small pulse - probably laser sweep
+    } else if (pulse_len >= min_pulse_len) { // Short pulse - likely laser sweep
         d.small_pulses++;
         if (cur_cycle.start_time &&
                 (start_time - cur_cycle.start_time) < cycle_period &&
@@ -291,29 +218,95 @@ inline void process_pulse(input_data &d, uint32_t start_time, uint32_t pulse_len
             cur_cycle.laser_pulse_len = pulse_len;
             cur_cycle.laser_pulse_pos = start_time + pulse_len/2 - cur_cycle.start_time;
         }
+    } else { // Very short pulse - ignore.
+        // TODO: Track it.        
     }
 }
 
-
-void cmp0_isr() {
-    const uint32_t timestamp = micros();
-    const uint32_t cmpState = CMP0_SCR;
-
-    input_data &d = global_input_data[0];
-    d.crossings++;
-
-    if (d.rise_time && (cmpState & CMP_SCR_CFF)) { // Fallen edge registered
-        const uint32_t pulse_len = timestamp - d.rise_time;
-        process_pulse(d, d.rise_time, pulse_len);
-        d.rise_time = 0;
-    }
-
-    if (cmpState & (CMP_SCR_CFR | CMP_SCR_COUT)) { // Rising edge registered and state is now high
-        d.rise_time = timestamp;
-    }
-
-    // Clear flags, re-enable interrupts.
-    CMP0_SCR = CMP_SCR_IER | CMP_SCR_IEF | CMP_SCR_CFR | CMP_SCR_CFF;
+// This function is called by input methods when a new pulse is registered.
+void add_pulse(uint32_t input_idx, uint32_t start_time, uint32_t end_time) {
+    input_data &d = global_input_data[input_idx];
+    d.pulses[d.pulses_write_idx] = {start_time, end_time-start_time};
+    INC_CONSTRAINED(d.pulses_write_idx, pulses_buffer_len);
 }
 
+bool have_valid_input_point(input_data &d, uint32_t cur_millis) {
+    for (int i = 0; i < num_cycle_phases; i++)
+        if (d.angle_timestamps[i]/1000 < cur_millis - 100)  // All angles were updated in the last 100ms.
+            return false;
+    return true;
+}
 
+void output_position(uint32_t input_idx, input_data &d, const float pos[3], float dist) {
+    if (d.angle_last_timestamp == d.angle_last_processed_timestamp)
+        return;
+
+    if (printPosition && input_idx == active_input_idx)
+        Serial.printf("POS: %.3f %.3f %.3f %.3f\n", pos[0], pos[1], pos[2], dist);
+    
+    // Covnert to NED coordinate system.
+    float ned[3];
+    convert_to_ned(pos, &ned);
+
+    if (d.angle_last_timestamp - d.angle_last_processed_timestamp > 500000 ||
+        (fabsf(ned[0] - d.last_ned[0]) < max_position_jump &&
+            fabsf(ned[1] - d.last_ned[1]) < max_position_jump &&
+            fabsf(ned[2] - d.last_ned[2]) < max_position_jump)) {
+
+        if (input_idx == 0) {  // TODO: Support multiple inputs.
+            // Point is valid; Send mavlink position.
+            send_mavlink_position(ned);
+            digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
+        }
+
+        for (int i = 0; i < 3; i++)
+            d.last_ned[i] = ned[i];
+        d.angle_last_processed_timestamp = d.angle_last_timestamp;
+    } else {
+        Serial.printf("Invalid position: too far from previous one\n");
+    }
+}
+
+// Main loop. All asynchronous calculations happen here.
+void loop() {
+    uint32_t cur_millis = millis();
+
+    // Process debug I/O
+    static uint32_t print_period = 0;
+    if (throttle_ms(1000, cur_millis, &print_period))
+        debug_io(Serial);
+
+    // Blink once a second in normal mode without a fix.
+    static uint32_t blink_period = 0;
+    if (throttle_ms(1000, cur_millis, &blink_period)) {
+        digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
+    }
+
+    // Process pulses, cycles and output data.
+    static uint32_t process_period = 0;
+    if (throttle_ms(34, cur_millis, &process_period)) {  // 33.33ms => 4 cycles
+        for (uint32_t input_idx = 0; input_idx < settings.input_count; input_idx++) {
+            input_data &d = global_input_data[input_idx];
+
+            // 1. Process pulses to generate cycles.
+            for (; d.pulses_read_idx != d.pulses_write_idx; INC_CONSTRAINED(d.pulses_read_idx, pulses_buffer_len)) {
+                pulse &p = d.pulses[d.pulses_read_idx];
+                process_pulse(input_idx, p.start_time, p.pulse_len);
+            }
+
+            // 2. Update fix state.
+            update_fix_acquired(d, cur_millis);
+
+            // 3. Calculate geometry & output it.
+            if (d.fix_acquired && have_valid_input_point(d, cur_millis)) {
+                if (settings.base_station_count >= 2) {
+                    float pt[3], dist;
+                    calculate_3d_point(d.angle_lens, &pt, &dist);
+                    output_position(input_idx, d, pt, dist);
+                } else if (printPosition && input_idx == active_input_idx) {
+                    Serial.printf("Fix acquired, but cannot calculate position because base stations not configured.\n");
+                }
+            }
+        }
+    }
+}

@@ -1,12 +1,8 @@
 #include "main.h"
+#include "settings.h"
 
 static const int vec3d_size = 3;
 typedef float vec3d[vec3d_size];
-
-struct lightsource {
-    float mat[9];
-    vec3d origin;
-};
 
 // NE angle = Angle(North - X axis).
 static const float ne_angle = 110.0f / 360.0f * (float)M_PI;
@@ -18,48 +14,38 @@ static float ned_rotation[9] = {
 };
 static arm_matrix_instance_f32 ned_rotation_mat = {3, 3, ned_rotation};
 
-// Lighthouse sources rotation matrix & 3d-position
-static lightsource lightsources[2] = {{
-    {  -0.88720f,  0.25875f, -0.38201f,
-       -0.04485f,  0.77566f,  0.62956f,
-        0.45920f,  0.57568f, -0.67656f},
-    {  -1.28658f,  2.32719f, -2.04823f}
-}, {
-    {   0.52584f, -0.64026f,  0.55996f,
-        0.01984f,  0.66739f,  0.74445f,
-       -0.85035f, -0.38035f,  0.36364f},
-    {   1.69860f,  2.62725f,  0.92969f}
-}};
-
 bool intersect_lines(vec3d &orig1, vec3d &vec1, vec3d &orig2, vec3d &vec2, vec3d *res, float *dist);
-void calc_ray_vec(lightsource &ls, float angle1, float angle2, vec3d &res);
+void calc_ray_vec(BaseStationGeometry &bs, float angle1, float angle2, vec3d &res);
 
 
-void calculate_3d_point(input_data& d, float (*ned)[3], float *dist) {
+void calculate_3d_point(const uint32_t angle_lens[num_cycle_phases], float (*pos)[3], float *dist) {
     // First 2 angles - x, y of station B; second 2 angles - x, y of station C.  Center is 4000. 180 deg = 8333.
     // Y - Up;  X ->   Z v
     // Station ray is inverse Z axis.
 
-    //Serial.printf("Angles: %4d %4d %4d %4d\n", d.angle_lens[0], d.angle_lens[1], d.angle_lens[2], d.angle_lens[3]);
+    //Serial.printf("Angles: %4d %4d %4d %4d\n", angle_lens[0], angle_lens[1], angle_lens[2], angle_lens[3]);
     float angles[num_cycle_phases];
     for (int i = 0; i < num_cycle_phases; i++)
-        angles[i] = float(int(d.angle_lens[i]) - angle_center_len) * (float)PI / cycle_period;
+        angles[i] = float(int(angle_lens[i]) - angle_center_len) * (float)PI / cycle_period;
     //Serial.printf("Angles: %.4f %.4f %.4f %.4f\n", angles[0], angles[1], angles[2], angles[3]);
 
+    if (settings.base_station_count < 2)
+        return;
 
     vec3d ray1 = {};
-    calc_ray_vec(lightsources[0], angles[0], angles[1], ray1);
+    calc_ray_vec(settings.base_stations[0], angles[0], angles[1], ray1);
     //Serial.printf("Ray1: %f %f %f\n", ray1[0], ray1[1], ray1[2]);
 
     vec3d ray2 = {};
-    calc_ray_vec(lightsources[1], angles[2], angles[3], ray2);
+    calc_ray_vec(settings.base_stations[1], angles[2], angles[3], ray2);
     //Serial.printf("Ray2: %f %f %f\n", ray2[0], ray2[1], ray2[2]);
 
-    vec3d pt = {};
-    intersect_lines(lightsources[0].origin, ray1, lightsources[1].origin, ray2, &pt, dist);
+    intersect_lines(settings.base_stations[0].origin, ray1, settings.base_stations[1].origin, ray2, pos, dist);
+}
 
+void convert_to_ned(const float pt[3], float (*ned)[3]) {
     // Convert to NED.
-    arm_matrix_instance_f32 pt_mat = {3, 1, pt};
+    arm_matrix_instance_f32 pt_mat = {3, 1, const_cast<float*>(pt)};
     arm_matrix_instance_f32 ned_mat = {3, 1, *ned};
     arm_mat_mult_f32(&ned_rotation_mat, &pt_mat, &ned_mat);
 }
@@ -79,7 +65,7 @@ float vec_length(vec3d &vec) {
     return res;
 }
 
-void calc_ray_vec(lightsource &ls, float angle1, float angle2, vec3d &res) {
+void calc_ray_vec(BaseStationGeometry &bs, float angle1, float angle2, vec3d &res) {
     vec3d a = {arm_cos_f32(angle1), 0, -arm_sin_f32(angle1)};  // Normal vector to X plane
     vec3d b = {0, arm_cos_f32(angle2), arm_sin_f32(angle2)};   // Normal vector to Y plane
 
@@ -88,7 +74,7 @@ void calc_ray_vec(lightsource &ls, float angle1, float angle2, vec3d &res) {
     float len = vec_length(ray);
     arm_scale_f32(ray, 1/len, ray, vec3d_size); // Normalize ray length.
 
-    arm_matrix_instance_f32 source_rotation_matrix = {3, 3, ls.mat};
+    arm_matrix_instance_f32 source_rotation_matrix = {3, 3, bs.mat};
     arm_matrix_instance_f32 ray_vec = {3, 1, ray};
     arm_matrix_instance_f32 ray_rotated_vec = {3, 1, res};
 

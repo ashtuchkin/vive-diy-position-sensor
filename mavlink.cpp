@@ -102,6 +102,6 @@ void send_mavlink_position(const float ned[3]) {
 
     uint32_t now_ms = millis();
     if (now_ms - last_ms > 50)
-        Serial.println(now_ms - last_ms);
+        Serial.printf("Late Mavlink message: %dms\n", now_ms - last_ms);
     last_ms = now_ms;
 }
