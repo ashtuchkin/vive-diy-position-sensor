@@ -3,7 +3,7 @@
 // Frame is 33 bytes long, see description here: https://github.com/nairol/LighthouseRedox/blob/master/docs/Base%20Station.md
 // To decode float16, we can use ARM specific __fp16 type.
 
-void initialize_decoders(input_data &d) {
+void initialize_decoders(InputData &d) {
     // Initialize all decoders to middle value
     for (int i = 0; i < num_big_pulses_in_cycle; i++) {
         for (int j = 0; j < num_cycle_phases; j++)
@@ -11,29 +11,26 @@ void initialize_decoders(input_data &d) {
     }
 }
 
-inline int decode_bit(bit_decoder &dec, int pulse_len) {
+inline int decode_bit_and_adjust_decoder(BitDecoder &dec, uint32_t pulse_len) {
     if (pulse_len == 0)
         return -1;
 
-    int delta_center = pulse_len - (dec.center_pulse_len >> 4);
-    bool high = delta_center > 0;
+    bool high = pulse_len > dec.center_pulse_len;
 
-    int assumed_center = pulse_len - (high ? dec.delta_width : -dec.delta_width);
-    dec.center_pulse_len = (dec.center_pulse_len * 15 + (assumed_center << 4)) >> 4;
+    int assumed_center = int(pulse_len) - (high ? dec.delta_width : -dec.delta_width);
+    dec.center_pulse_len = (dec.center_pulse_len * 15.f + assumed_center) / 16.f;
 
     // In future: auto-adjust delta_width as well
 
-    if (abs(assumed_center - (dec.center_pulse_len >> 4)) < 5) {
+    if (abs(assumed_center - int(dec.center_pulse_len)) < 5) {
         return int(high);
     } else {
         return -1; // Not accurate
     }
 }
 
-inline void decode_and_write_bit(decoder &dec, uint32_t phase_id, uint32_t pulse_len) {
-    int bit = decode_bit(dec.bit_decoders[phase_id], int(pulse_len));
-
-    data_frame &frame = dec.data_frames[dec.write_data_frames_idx];
+inline void decode_frame_bit(Decoder &dec, int bit) {
+    DataFrame &frame = dec.cur_frame;
     if (bit == -1) { // Not decoded -> reset frame.
         frame = {};
         return;
@@ -82,17 +79,21 @@ inline void decode_and_write_bit(decoder &dec, uint32_t phase_id, uint32_t pulse
 
     if (frame.data_idx == (frame.data_len|1) + 2) {
         // Received full frame - write it.
-        INC_CONSTRAINED(dec.write_data_frames_idx, num_data_frames);
-        dec.data_frames[dec.write_data_frames_idx] = {};
+        dec.data_frames.enqueue(frame);
+        frame = {};
     }
 }
 
-void extract_data_from_cycle(input_data &d, uint32_t first_pulse_len, uint32_t second_pulse_len, uint32_t id) {
+void extract_data_from_cycle(InputData &d, uint32_t first_pulse_len, uint32_t second_pulse_len, uint32_t id) {
     if (id == 0)
         initialize_decoders(d);
 
     uint32_t phase_id = id % 4;
+    uint32_t pulse_lens[num_big_pulses_in_cycle] = {first_pulse_len, second_pulse_len};
 
-    decode_and_write_bit(d.decoders[0], phase_id, first_pulse_len);
-    decode_and_write_bit(d.decoders[1], phase_id, second_pulse_len);
+    for (int i = 0; i < num_big_pulses_in_cycle; i++) {
+        Decoder &dec = d.decoders[i];
+        int bit = decode_bit_and_adjust_decoder(dec.bit_decoders[phase_id], pulse_lens[i]);
+        decode_frame_bit(dec, bit);
+    }
 }

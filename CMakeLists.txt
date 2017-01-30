@@ -14,7 +14,6 @@ set(SOURCE_FILES
         data_decoder.cpp
         geometry.cpp
         mavlink.cpp
-        util.cpp
 )
 
 add_executable(vive-diy-position-sensor "${SOURCE_FILES}")

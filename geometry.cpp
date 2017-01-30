@@ -1,5 +1,6 @@
 #include "main.h"
 #include "settings.h"
+#include <arm_math.h>
 
 static const int vec3d_size = 3;
 typedef float vec3d[vec3d_size];

@@ -1,8 +1,9 @@
 #include "main.h"
 #include "settings.h"
+#include "utils.h"
 
 // Input-specific data
-input_data global_input_data[max_num_inputs] = {};
+InputData global_input_data[max_num_inputs] = {};
 
 // Debugging state.
 uint32_t active_input_idx = 0;  // Active input for which we print values.
@@ -43,17 +44,16 @@ void debug_io(Stream &stream) {
     }
 
     // Print different kinds of debug information.
-    input_data &d = global_input_data[active_input_idx];
+    InputData &d = global_input_data[active_input_idx];
     if (printCountDelta) {
         stream.println();
-        stream.printf("Pulses write idx: %d\n", d.pulses_write_idx);
-        stream.printf("Cycles write idx: %d\n", d.cycles_write_idx);
+        // TODO: Write pulse & cycle queue progress
         stream.printf("Threshold level: %d (%d)\n", getCmpThreshold(active_input_idx), getCmpLevel(active_input_idx));
     }
 
     if (printCycles) {
-        for (; d.cycles_read_idx != d.cycles_write_idx; INC_CONSTRAINED(d.cycles_read_idx, cycles_buffer_len)) {
-            cycle &c = d.cycles[d.cycles_read_idx];
+        Cycle c;
+        while (d.cycles.dequeue(&c)) {
             if (c.phase_id == 0) {
                 stream.println("\n==================================");
                 prevCycleId = -1;
@@ -74,11 +74,11 @@ void debug_io(Stream &stream) {
 
     if (printDecoders) {
         for (int i = 0; i < num_big_pulses_in_cycle; i++) {
-            decoder &dec = d.decoders[i];
+            Decoder &dec = d.decoders[i];
             stream.printf("DECODER %d: ", i);
             for (int j = 0; j < num_cycle_phases; j++) {
-                bit_decoder &bit_dec = dec.bit_decoders[j];
-                stream.printf("%3d, ", bit_dec.center_pulse_len >> 4);
+                BitDecoder &bit_dec = dec.bit_decoders[j];
+                stream.printf("%3d, ", int(bit_dec.center_pulse_len));
             }
             stream.println();
         }
@@ -86,9 +86,9 @@ void debug_io(Stream &stream) {
 
     if (printFrames) {
         for (int i = 0; i < num_big_pulses_in_cycle; i++) {
-            decoder &dec = d.decoders[i];
-            for (; dec.read_data_frames_idx != dec.write_data_frames_idx; INC_CONSTRAINED(dec.read_data_frames_idx, num_data_frames)) {
-                data_frame &frame = dec.data_frames[dec.read_data_frames_idx];
+            Decoder &dec = d.decoders[i];
+            DataFrame frame;
+            while (dec.data_frames.dequeue(&frame)) {
                 stream.printf("FRAME %d (%d bytes):", i, frame.data_len);
                 for (int j = 0; j < frame.data_len; j++)
                     stream.printf(" %02X", frame.data[j]);
@@ -99,15 +99,15 @@ void debug_io(Stream &stream) {
 }
 
 // Update whether fix is acquired for given input.
-void update_fix_acquired(input_data &d, uint32_t cur_millis) {
+void update_fix_acquired(InputData &d, uint32_t cur_millis) {
     // We say that we have a fix after 30 correct cycles and last correct cycle less than 100ms away.
     if (d.last_cycle_id > 30 && (cur_millis - d.last_cycle_time / 1000) < 100) {
         if (!d.fix_acquired) {
             bool invalid_pulse_lens = false;
             uint32_t min_idxes[2];
             for (int i = 0; i < num_big_pulses_in_cycle && !invalid_pulse_lens; i++) {
-                decoder &dec = d.decoders[i];
-
+                Decoder &dec = d.decoders[i];
+                
                 // a. Find minimum len in bit_decoders
                 uint32_t min_idx = 0;
                 for (uint32_t j = 1; j < num_cycle_phases; j++)
@@ -117,13 +117,11 @@ void update_fix_acquired(input_data &d, uint32_t cur_millis) {
                 min_idxes[i] = min_idx;
 
                 // b. Check that delta lens are as expected (10 - 30 - 10)
-                uint32_t cur_idx = min_idx;
-                int last_len = dec.bit_decoders[cur_idx].center_pulse_len;
+                float last_len = dec.bit_decoders[min_idx].center_pulse_len;
                 static const int valid_deltas[num_cycle_phases - 1] = {10, 30, 10};
                 for (uint32_t j = 0; j < num_cycle_phases - 1; j++) {
-                    INC_CONSTRAINED(cur_idx, num_cycle_phases);
-                    int cur_len = dec.bit_decoders[cur_idx].center_pulse_len;
-                    if (abs(((cur_len - last_len) >> 4) - valid_deltas[j]) > 3) {
+                    float cur_len = dec.bit_decoders[(min_idx+j+1) % num_cycle_phases].center_pulse_len;
+                    if (abs(int(cur_len - last_len) - valid_deltas[j]) > 3) {
                         invalid_pulse_lens = true;
                         break;
                     }
@@ -149,8 +147,8 @@ void update_fix_acquired(input_data &d, uint32_t cur_millis) {
 }
 
 void process_pulse(uint32_t input_idx, uint32_t start_time, uint32_t pulse_len) {
-    input_data &d = global_input_data[input_idx];
-    cycle &cur_cycle = d.cur_cycle;
+    InputData &d = global_input_data[input_idx];
+    Cycle &cur_cycle = d.cur_cycle;
 
     if (pulse_len >= max_big_pulse_len) {
         // Ignore it.
@@ -166,8 +164,7 @@ void process_pulse(uint32_t input_idx, uint32_t start_time, uint32_t pulse_len) 
 
         // If there was a complete cycle before, we should write it and clean up.
         if (cur_cycle.start_time && time_from_cycle_start > (cycle_period-100)) {
-            d.cycles[d.cycles_write_idx] = cur_cycle;
-            INC_CONSTRAINED(d.cycles_write_idx, cycles_buffer_len);
+            d.cycles.enqueue(cur_cycle);
 
             d.last_cycle_time = cur_cycle.start_time;
             d.last_cycle_id = cur_cycle.phase_id;
@@ -225,19 +222,18 @@ void process_pulse(uint32_t input_idx, uint32_t start_time, uint32_t pulse_len) 
 
 // This function is called by input methods when a new pulse is registered.
 void add_pulse(uint32_t input_idx, uint32_t start_time, uint32_t end_time) {
-    input_data &d = global_input_data[input_idx];
-    d.pulses[d.pulses_write_idx] = {start_time, end_time-start_time};
-    INC_CONSTRAINED(d.pulses_write_idx, pulses_buffer_len);
+    InputData &d = global_input_data[input_idx];
+    d.pulses.enqueue({start_time, end_time-start_time});
 }
 
-bool have_valid_input_point(input_data &d, uint32_t cur_millis) {
+bool have_valid_input_point(InputData &d, uint32_t cur_millis) {
     for (int i = 0; i < num_cycle_phases; i++)
         if (d.angle_timestamps[i]/1000 < cur_millis - 100)  // All angles were updated in the last 100ms.
             return false;
     return true;
 }
 
-void output_position(uint32_t input_idx, input_data &d, const float pos[3], float dist) {
+void output_position(uint32_t input_idx, InputData &d, const float pos[3], float dist) {
     if (d.angle_last_timestamp == d.angle_last_processed_timestamp)
         return;
 
@@ -286,11 +282,11 @@ void loop() {
     static uint32_t process_period = 0;
     if (throttle_ms(34, cur_millis, &process_period)) {  // 33.33ms => 4 cycles
         for (uint32_t input_idx = 0; input_idx < settings.input_count; input_idx++) {
-            input_data &d = global_input_data[input_idx];
+            InputData &d = global_input_data[input_idx];
 
             // 1. Process pulses to generate cycles.
-            for (; d.pulses_read_idx != d.pulses_write_idx; INC_CONSTRAINED(d.pulses_read_idx, pulses_buffer_len)) {
-                pulse &p = d.pulses[d.pulses_read_idx];
+            Pulse p;
+            while (d.pulses.dequeue(&p)) {
                 process_pulse(input_idx, p.start_time, p.pulse_len);
             }
 
