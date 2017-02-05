@@ -1,10 +1,8 @@
-#include "main.h"
-#include "settings.h"
+#include "geometry.h"
 #include <arm_math.h>
+#include "message_logging.h"
 
-static const int vec3d_size = 3;
-typedef float vec3d[vec3d_size];
-
+/*
 // NE angle = Angle(North - X axis).
 static const float ne_angle = 110.0f / 360.0f * (float)M_PI;
 static float ned_rotation[9] = {
@@ -14,43 +12,58 @@ static float ned_rotation[9] = {
      0.0f,          -1.0f,            0.0f,
 };
 static arm_matrix_instance_f32 ned_rotation_mat = {3, 3, ned_rotation};
+*/
+PointGeometryBuilder::PointGeometryBuilder(const Vector<BaseStationGeometry, num_base_stations> &base_stations, uint32_t input_idx)
+    : base_stations_(base_stations), input_idx_(input_idx) {
+    // TODO: Assert that base_stations->size() == 2.
+}
 
-bool intersect_lines(vec3d &orig1, vec3d &vec1, vec3d &orig2, vec3d &vec2, vec3d *res, float *dist);
-void calc_ray_vec(BaseStationGeometry &bs, float angle1, float angle2, vec3d &res);
 
-
-void calculate_3d_point(const uint32_t angle_lens[num_cycle_phases], float (*pos)[3], float *dist) {
-    // First 2 angles - x, y of station B; second 2 angles - x, y of station C.  Center is 4000. 180 deg = 8333.
+void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
+    // First 2 angles - x, y of station B; second 2 angles - x, y of station C.
     // Y - Up;  X ->   Z v
     // Station ray is inverse Z axis.
 
-    //Serial.printf("Angles: %4d %4d %4d %4d\n", angle_lens[0], angle_lens[1], angle_lens[2], angle_lens[3]);
-    float angles[num_cycle_phases];
-    for (int i = 0; i < num_cycle_phases; i++)
-        angles[i] = float(int(angle_lens[i]) - angle_center_len) * (float)PI / cycle_period;
+    const float *angles = f.sensors[0].angles;
     //Serial.printf("Angles: %.4f %.4f %.4f %.4f\n", angles[0], angles[1], angles[2], angles[3]);
 
-    if (settings.base_station_count < 2)
-        return;
-
     vec3d ray1 = {};
-    calc_ray_vec(settings.base_stations[0], angles[0], angles[1], ray1);
+    calc_ray_vec(base_stations_[0], angles[0], angles[1], ray1);
     //Serial.printf("Ray1: %f %f %f\n", ray1[0], ray1[1], ray1[2]);
 
     vec3d ray2 = {};
-    calc_ray_vec(settings.base_stations[1], angles[2], angles[3], ray2);
+    calc_ray_vec(base_stations_[1], angles[2], angles[3], ray2);
     //Serial.printf("Ray2: %f %f %f\n", ray2[0], ray2[1], ray2[2]);
 
-    intersect_lines(settings.base_stations[0].origin, ray1, settings.base_stations[1].origin, ray2, pos, dist);
+
+    ObjectGeometry geo = {.time = f.time, .xyz = {}, .q = {1.f, 0.f, 0.f, 0.f}};
+
+    float dist;
+    intersect_lines(base_stations_[0].origin, ray1, 
+                    base_stations_[1].origin, ray2, &geo.xyz, &dist);
+
+    produce(geo);
 }
 
+bool PointGeometryBuilder::debug_cmd(HashedWord *input_words) {
+    if (*input_words == "geom#"_hash && input_words->idx == input_idx_) {
+        input_words++;
+        return producer_debug_cmd(this, input_words, "ObjectGeometry", input_idx_);
+    }
+    return false;
+}
+void PointGeometryBuilder::debug_print(Print& stream) {
+    producer_debug_print(this, stream);
+}
+
+/*
 void convert_to_ned(const float pt[3], float (*ned)[3]) {
     // Convert to NED.
     arm_matrix_instance_f32 pt_mat = {3, 1, const_cast<float*>(pt)};
     arm_matrix_instance_f32 ned_mat = {3, 1, *ned};
     arm_mat_mult_f32(&ned_rotation_mat, &pt_mat, &ned_mat);
 }
-
+*/
 void vec_cross_product(const vec3d &a, const vec3d &b, vec3d &res) {
     res[0] = a[1]*b[2] - a[2]*b[1];
     res[1] = a[2]*b[0] - a[0]*b[2];
@@ -66,7 +79,7 @@ float vec_length(vec3d &vec) {
     return res;
 }
 
-void calc_ray_vec(BaseStationGeometry &bs, float angle1, float angle2, vec3d &res) {
+void calc_ray_vec(const BaseStationGeometry &bs, float angle1, float angle2, vec3d &res) {
     vec3d a = {arm_cos_f32(angle1), 0, -arm_sin_f32(angle1)};  // Normal vector to X plane
     vec3d b = {0, arm_cos_f32(angle2), arm_sin_f32(angle2)};   // Normal vector to Y plane
 
@@ -75,7 +88,7 @@ void calc_ray_vec(BaseStationGeometry &bs, float angle1, float angle2, vec3d &re
     float len = vec_length(ray);
     arm_scale_f32(ray, 1/len, ray, vec3d_size); // Normalize ray length.
 
-    arm_matrix_instance_f32 source_rotation_matrix = {3, 3, bs.mat};
+    arm_matrix_instance_f32 source_rotation_matrix = {3, 3, const_cast<float*>(bs.mat)};
     arm_matrix_instance_f32 ray_vec = {3, 1, ray};
     arm_matrix_instance_f32 ray_rotated_vec = {3, 1, res};
 
@@ -83,18 +96,18 @@ void calc_ray_vec(BaseStationGeometry &bs, float angle1, float angle2, vec3d &re
 }
 
 
-bool intersect_lines(vec3d &orig1, vec3d &vec1, vec3d &orig2, vec3d &vec2, vec3d *res, float *dist) {
+bool intersect_lines(const vec3d &orig1, const vec3d &vec1, const vec3d &orig2, const vec3d &vec2, vec3d *res, float *dist) {
     // Algoritm: http://geomalgorithms.com/a07-_distance.html#Distance-between-Lines
 
     vec3d w0 = {};
-    arm_sub_f32(orig1, orig2, w0, vec3d_size);
+    arm_sub_f32(const_cast<vec3d&>(orig1), const_cast<vec3d&>(orig2), w0, vec3d_size);
 
     float a, b, c, d, e;
-    arm_dot_prod_f32(vec1, vec1, vec3d_size, &a);
-    arm_dot_prod_f32(vec1, vec2, vec3d_size, &b);
-    arm_dot_prod_f32(vec2, vec2, vec3d_size, &c);
-    arm_dot_prod_f32(vec1, w0, vec3d_size, &d);
-    arm_dot_prod_f32(vec2, w0, vec3d_size, &e);
+    arm_dot_prod_f32(const_cast<vec3d&>(vec1), const_cast<vec3d&>(vec1), vec3d_size, &a);
+    arm_dot_prod_f32(const_cast<vec3d&>(vec1), const_cast<vec3d&>(vec2), vec3d_size, &b);
+    arm_dot_prod_f32(const_cast<vec3d&>(vec2), const_cast<vec3d&>(vec2), vec3d_size, &c);
+    arm_dot_prod_f32(const_cast<vec3d&>(vec1), w0, vec3d_size, &d);
+    arm_dot_prod_f32(const_cast<vec3d&>(vec2), w0, vec3d_size, &e);
 
     float denom = a * c - b * b;
     if (fabs(denom) < 1e-5f)
@@ -103,14 +116,14 @@ bool intersect_lines(vec3d &orig1, vec3d &vec1, vec3d &orig2, vec3d &vec2, vec3d
     // Closest point to 2nd line on 1st line
     float t1 = (b * e - c * d) / denom;
     vec3d pt1 = {};
-    arm_scale_f32(vec1, t1, pt1, vec3d_size);
-    arm_add_f32(pt1, orig1, pt1, vec3d_size);
+    arm_scale_f32(const_cast<vec3d&>(vec1), t1, pt1, vec3d_size);
+    arm_add_f32(pt1, const_cast<vec3d&>(orig1), pt1, vec3d_size);
 
     // Closest point to 1st line on 2nd line
     float t2 = (a * e - b * d) / denom;
     vec3d pt2 = {};
-    arm_scale_f32(vec2, t2, pt2, vec3d_size);
-    arm_add_f32(pt2, orig2, pt2, vec3d_size);
+    arm_scale_f32(const_cast<vec3d&>(vec2), t2, pt2, vec3d_size);
+    arm_add_f32(pt2, const_cast<vec3d&>(orig2), pt2, vec3d_size);
 
     // Result is in the middle
     vec3d tmp = {};

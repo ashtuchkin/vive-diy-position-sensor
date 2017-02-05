@@ -1,4 +1,4 @@
-#include "main.h"
+// NOTE: This file is not used at the moment.
 
 // See https://github.com/iNavFlight/inav/blob/master/src/main/io/gps_ublox.c
 // UBLOX: https://www.u-blox.com/sites/default/files/products/documents/u-blox6_ReceiverDescrProtSpec_%28GPS.G6-SW-10018%29_Public.pdf

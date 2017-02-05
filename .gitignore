@@ -6,3 +6,6 @@
 
 # Visual Studio Code files:
 .vscode
+
+# CMake build
+build/*

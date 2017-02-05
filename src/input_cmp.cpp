@@ -12,8 +12,17 @@
 //   * Up to 3 sensors at the same time; Only particular pins are supported (see input_pin_variants below).
 //   * Timing is calculated in ISR, leading to potential jitter.
 //
-#include "main.h"
+#include "input_cmp.h"
+
+#include <Arduino.h>
 #include "settings.h"
+#include "common.h"
+
+const static int num_comparators = 3;  // Number of Comparator modules in Teensy.
+
+// Statically allocated data structures.
+InputCmpNode input_cmps[num_comparators];  // Nodes, by comparator #.
+CircularBuffer<Pulse, InputCmpNode::pulses_buffer_len> InputNode::static_pulse_bufs_[max_num_inputs]; // pulse buffers.
 
 // Mapping of comparator inputs to teensy pins
 struct ComparatorInputPin {
@@ -46,29 +55,15 @@ const static ComparatorPorts comparator_port_defs[num_comparators] = {
     {&CMP2_CR0, &CMP2_CR1, &CMP2_FPR, &CMP2_SCR, &CMP2_DACCR, &CMP2_MUXCR, IRQ_CMP2},
 };
 
-// Dynamic data for each comparator.
-struct ComparatorData {
-    bool is_active;
-    uint32_t rise_time;
-    const ComparatorPorts *ports;
-    int input_idx;
-    int cmp_threshold;
-    bool pulse_polarity;
-    ComparatorInputPin pin;
-};
 
-static ComparatorData comparator_data[num_comparators] = {};
-static ComparatorData *comparator_data_by_input_idx[max_num_inputs] = {};
-
-
-void setCmpThreshold(const ComparatorData *pCmp, uint32_t level) { // level = 0..63, from 0V to 3V3.
-    if (!pCmp->pulse_polarity)
+void InputCmpNode::setCmpThreshold(uint32_t level) { // level = 0..63, from 0V to 3V3.
+    if (!pulse_polarity_)
         level = 63 - level;
     
     // DAC Control: Enable; Reference=3v3 (Vin1=VREF_OUT=1V2; Vin2=VDD=3V3); Output select=0
-    *pCmp->ports->daccr = CMP_DACCR_DACEN | CMP_DACCR_VRSEL | CMP_DACCR_VOSEL(level);
+    *ports_->daccr = CMP_DACCR_DACEN | CMP_DACCR_VRSEL | CMP_DACCR_VOSEL(level);
 }
-
+/*
 inline ComparatorData *cmpDataFromInputIdx(uint32_t input_idx) {
     ComparatorData *pCmp = comparator_data_by_input_idx[input_idx];
     if (!pCmp || !pCmp->is_active)
@@ -96,10 +91,10 @@ int getCmpThreshold(uint32_t input_idx) {
     else
         return 0;
 }
-
+*/
+/*
 void dynamicThresholdAdjustment() {
     // TODO.
-    /*
     // 1. Comparator level dynamic adjustment.
     __disable_irq();
     uint32_t crossings = d.crossings; d.crossings = 0;
@@ -129,104 +124,115 @@ void dynamicThresholdAdjustment() {
             changeCmpThreshold(d, -1);
         }
     }
-    */
 }
+*/
 
-void resetCmpAfterValidation() {
+
+void InputCmpNode::reset_all() {
     for (int i = 0; i < num_comparators; i++)
-        comparator_data[i] = {};
+        input_cmps[i] = {};
 }
 
-bool setupCmpInput(uint32_t input_idx, const InputDefinition &input_def, char *error_message, bool validation_mode) {
+InputNode *InputCmpNode::create(uint32_t input_idx, const InputDefinition &input_def, char *error_message) {
     // Find comparator and input num for given pin.
-    uint32_t cmp_num, cmp_input;
-    int i = 0;
-    for (; i < num_input_pin_variants; i++)
+    const ComparatorInputPin *pin = 0;
+    for (int i = 0; i < num_input_pin_variants; i++)
         if (input_pin_variants[i].pin == input_def.pin) {
-            cmp_num = input_pin_variants[i].cmp_num;
-            cmp_input = input_pin_variants[i].cmp_input;
+            pin = &input_pin_variants[i];
             break;
         }
     
-    if (i == num_input_pin_variants) {
+    if (!pin) {
         sprintf(error_message, "Pin %lu is not supported for 'cmp' input type.\n", input_def.pin);
-        return false;
+        return NULL;
     }
-    ComparatorData *pCmp = &comparator_data[cmp_num];
-    if (pCmp->is_active) {
+    InputCmpNode *pCmp = &input_cmps[pin->cmp_num];
+    if (pCmp->is_active_) {
         sprintf(error_message, "Can't use pin %lu for a 'cmp' input type: CMP%lu is already in use by pin %lu.\n", 
-                input_def.pin, pCmp->pin.cmp_num, pCmp->pin.pin);
-        return false;
+                input_def.pin, pCmp->pin_->cmp_num, pCmp->pin_->pin);
+        return NULL;
     }
     if (input_def.initial_cmp_threshold >= 64) {
         sprintf(error_message, "Invalid threshold value for 'cmp' input type on pin %lu. Supported values: 0-63\n", input_def.pin);
-        return false;
+        return NULL;
     } 
-    pCmp->is_active = true;
-    pCmp->input_idx = input_idx;
-    pCmp->cmp_threshold = input_def.initial_cmp_threshold;
-    pCmp->pulse_polarity = input_def.pulse_polarity;
-    pCmp->ports = &comparator_port_defs[cmp_num];
-    pCmp->rise_time = 0;
-    pCmp->pin = input_pin_variants[i];
+    pCmp->is_active_ = true;
+    pCmp->input_idx_ = input_idx;
+    pCmp->cmp_threshold_ = input_def.initial_cmp_threshold;
+    pCmp->pulse_polarity_ = input_def.pulse_polarity;
+    pCmp->ports_ = &comparator_port_defs[pin->cmp_num];
+    pCmp->rise_valid_ = false;
+    pCmp->pin_ = pin;
+    return pCmp;
+}
 
-    if (validation_mode)
-        return true;
-    
-    comparator_data_by_input_idx[input_idx] = pCmp;
+void InputCmpNode::start() {
+    InputNode::start();
 
-    NVIC_SET_PRIORITY(pCmp->ports->irq, 64); // very high prio (0 = highest priority, 128 = medium, 255 = lowest)
-    NVIC_ENABLE_IRQ(pCmp->ports->irq);
+    NVIC_SET_PRIORITY(ports_->irq, 64); // very high prio (0 = highest priority, 128 = medium, 255 = lowest)
+    NVIC_ENABLE_IRQ(ports_->irq);
 
     SIM_SCGC4 |= SIM_SCGC4_CMP; // Enable clock for comparator
 
     // Filter disabled; Hysteresis level 0 (0=5mV; 1=10mV; 2=20mV; 3=30mV)
-    *pCmp->ports->cr0 = CMP_CR0_FILTER_CNT(0) | CMP_CR0_HYSTCTR(0);
+    *ports_->cr0 = CMP_CR0_FILTER_CNT(0) | CMP_CR0_HYSTCTR(0);
 
     // Filter period - disabled
-    *pCmp->ports->fpr = 0;
+    *ports_->fpr = 0;
 
     // Input/MUX Control
-    pinMode(input_def.pin, INPUT);
-    const static int ref_input = 7; // CMPn_IN7 (DAC Reference Voltage, which we control in setCmpThreshold())
-    *pCmp->ports->muxcr = input_def.pulse_polarity
+    pinMode(pin_->pin, INPUT);
+    const static uint32_t ref_input = 7; // CMPn_IN7 (DAC Reference Voltage, which we control in setCmpThreshold())
+    uint32_t cmp_input = pin_->cmp_input;
+    *ports_->muxcr = pulse_polarity_
         ? CMP_MUXCR_PSEL(cmp_input) | CMP_MUXCR_MSEL(ref_input)
         : CMP_MUXCR_PSEL(ref_input) | CMP_MUXCR_MSEL(cmp_input);
 
     // Comparator ON; Sampling disabled; Windowing disabled; Power mode: High speed; Output Pin disabled;
-    *pCmp->ports->cr1 = CMP_CR1_PMODE | CMP_CR1_EN;
-    setCmpThreshold(pCmp, pCmp->cmp_threshold);
+    *ports_->cr1 = CMP_CR1_PMODE | CMP_CR1_EN;
+    setCmpThreshold(cmp_threshold_);
 
     delay(5);
 
     // Status & Control: DMA Off; Interrupt: both rising & falling; Reset current state.
-    *pCmp->ports->scr = CMP_SCR_IER | CMP_SCR_IEF | CMP_SCR_CFR | CMP_SCR_CFF;
-    return true;
+    *ports_->scr = CMP_SCR_IER | CMP_SCR_IEF | CMP_SCR_CFR | CMP_SCR_CFF;
 }
 
+bool InputCmpNode::debug_cmd(HashedWord *input_words) {
+    // TODO: Threshold manipulation (changeCmpThreshold).
+    return InputNode::debug_cmd(input_words);
+}
 
-inline void __attribute__((always_inline)) cmp_isr(int cmp_num, volatile uint8_t *scr) {
+void InputCmpNode::debug_print(Print& stream) {
+    InputNode::debug_print(stream);    
+}
+
+inline void __attribute__((always_inline)) InputCmpNode::_isr_handler(volatile uint8_t *scr) {
     const uint32_t cmpState = *scr;
-    const uint32_t timestamp = micros();
+    const Timestamp timestamp = Timestamp::cur_time();
 
-    ComparatorData *pCmp = &comparator_data[cmp_num];
-    if (!pCmp->is_active)
+    if (!is_active_)
         return;
 
-    if (pCmp->rise_time && (cmpState & CMP_SCR_CFF)) { // Falling edge registered
-        add_pulse(pCmp->input_idx, pCmp->rise_time, timestamp);
-        pCmp->rise_time = 0;
+    if (rise_valid_ && (cmpState & CMP_SCR_CFF)) { // Falling edge registered
+        pulses_buf_->enqueue({
+            .input_idx = input_idx_, 
+            .start_time = rise_time_, 
+            .pulse_len = timestamp - rise_time_,
+        });
+        rise_valid_ = false;
     }
 
     const static uint32_t mask = CMP_SCR_CFR | CMP_SCR_COUT;
     if ((cmpState & mask) == mask) { // Rising edge registered and state is now high
-        pCmp->rise_time = timestamp;
+        rise_time_ = timestamp;
+        rise_valid_ = true;
     }
 
     // Clear flags, re-enable interrupts.
     *scr = CMP_SCR_IER | CMP_SCR_IEF | CMP_SCR_CFR | CMP_SCR_CFF;
 }
 
-void cmp0_isr() { cmp_isr(0, &CMP0_SCR); }
-void cmp1_isr() { cmp_isr(1, &CMP1_SCR); }
-void cmp2_isr() { cmp_isr(2, &CMP2_SCR); }
+void cmp0_isr() { input_cmps[0]._isr_handler(&CMP0_SCR); }
+void cmp1_isr() { input_cmps[1]._isr_handler(&CMP1_SCR); }
+void cmp2_isr() { input_cmps[2]._isr_handler(&CMP2_SCR); }
