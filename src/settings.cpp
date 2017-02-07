@@ -4,8 +4,8 @@
 #include "input_cmp.h"
 #include "primitives/string_utils.h"
 
-const static uint32_t current_settings_version = 0xbabe0001;
-static uint32_t * const eeprom_addr = 0;
+constexpr uint32_t current_settings_version = 0xbabe0001;
+constexpr uint32_t * eeprom_addr = 0;
 /* Example settings
 reset
 i0 pin 12 positive

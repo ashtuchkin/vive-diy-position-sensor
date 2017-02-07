@@ -18,7 +18,7 @@
 #include "settings.h"
 #include "common.h"
 
-const static int num_comparators = 3;  // Number of Comparator modules in Teensy.
+constexpr int num_comparators = 3;  // Number of Comparator modules in Teensy.
 
 // Statically allocated data structures.
 InputCmpNode input_cmps[num_comparators];  // Nodes, by comparator #.
@@ -31,7 +31,7 @@ struct ComparatorInputPin {
     uint32_t pin;      // Teensy PIN
 };
 
-const static int num_input_pin_variants = 9;
+constexpr int num_input_pin_variants = 9;
 const static ComparatorInputPin input_pin_variants[num_input_pin_variants] = {
     {0, 0, 11}, // CMP0_IN0 = Pin 11
     {0, 1, 12}, // CMP0_IN1 = Pin 12

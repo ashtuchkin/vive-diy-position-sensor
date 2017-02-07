@@ -28,7 +28,7 @@ private:
 };
 
 
-static const int vec3d_size = 3;
+constexpr int vec3d_size = 3;
 typedef float vec3d[vec3d_size];
 
 bool intersect_lines(const vec3d &orig1, const vec3d &vec1, const vec3d &orig2, const vec3d &vec2, vec3d *res, float *dist);

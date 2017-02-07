@@ -2,18 +2,18 @@
 #include "message_logging.h"
 
 // Pulse classification parameters.
-const static TimeDelta min_short_pulse_len(2, usec);
-const static TimeDelta min_long_pulse_len(40, usec);
-const static TimeDelta max_long_pulse_len(300, usec);
+constexpr TimeDelta min_short_pulse_len(2, usec);
+constexpr TimeDelta min_long_pulse_len(40, usec);
+constexpr TimeDelta max_long_pulse_len(300, usec);
 
-const static TimeDelta long_pulse_starts_accepted_range(20, usec);
-const static TimeDelta long_pulse_starts[num_base_stations] = {TimeDelta(0, usec), TimeDelta(400, usec)};
+constexpr TimeDelta long_pulse_starts_accepted_range(20, usec);
+constexpr TimeDelta long_pulse_starts[num_base_stations] = {TimeDelta(0, usec), TimeDelta(400, usec)};
 
-const static TimeDelta cycle_period(8333, usec);  // Total len of 1 cycle.
-const static TimeDelta angle_center_len(4000, usec);
-const static TimeDelta short_pulse_min_time = angle_center_len - cycle_period / 3;
-const static TimeDelta short_pulse_max_time = angle_center_len + cycle_period / 3;
-const static TimeDelta cycle_processing_point = short_pulse_max_time + TimeDelta(100, usec); // time from start of the cycle.
+constexpr TimeDelta cycle_period(8333, usec);  // Total len of 1 cycle.
+constexpr TimeDelta angle_center_len(4000, usec);
+constexpr TimeDelta short_pulse_min_time = angle_center_len - cycle_period / 3;
+constexpr TimeDelta short_pulse_max_time = angle_center_len + cycle_period / 3;
+constexpr TimeDelta cycle_processing_point = short_pulse_max_time + TimeDelta(100, usec); // time from start of the cycle.
 
 enum CycleFixLevels {
     kCycleFixNone = 0,

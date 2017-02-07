@@ -1,6 +1,7 @@
 #include "outputs.h"
 
 // This strange sequence of includes and definitions is due to how mavlink_helpers.h works :(
+// TODO: This currently includes code to sign packets with SHA256, bloating the binary. Get rid of it.
 #define MAVLINK_USE_CONVENIENCE_FUNCTIONS
 #define MAVLINK_COMM_NUM_BUFFERS 4
 #define MAVLINK_SEND_UART_BYTES mavlink_send_uart_bytes
@@ -22,7 +23,7 @@ void mavlink_send_uart_bytes(mavlink_channel_t chan, const uint8_t *chars, unsig
 #include "primitives/vector.h"
 
 // Static list of streams we will output to.
-Vector<Print *, MAVLINK_COMM_NUM_BUFFERS> output_streams;
+static Vector<Print *, MAVLINK_COMM_NUM_BUFFERS> output_streams;
 
 // Send multiple chars (uint8_t) over a comm channel
 void mavlink_send_uart_bytes(mavlink_channel_t chan, const uint8_t *chars, unsigned length) {

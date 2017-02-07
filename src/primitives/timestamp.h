@@ -14,25 +14,25 @@ enum TimeUnit {
 class TimeDelta {
 public:
     // Constructors
-    inline TimeDelta(): time_delta_(0) {}  // Default constructor to make it possible to include it in structs.
-    inline TimeDelta(int val, TimeUnit tu): time_delta_(val * tu) {}  // Main way to create TimeDelta: value and TimeUnit.
+    constexpr TimeDelta(): time_delta_(0) {}  // Default constructor to make it possible to include it in structs.
+    constexpr TimeDelta(int val, TimeUnit tu): time_delta_(val * tu) {}  // Main way to create TimeDelta: value and TimeUnit.
 
-    inline int get_value(TimeUnit tu) const { return time_delta_ / tu; }
+    constexpr int get_value(TimeUnit tu) const { return time_delta_ / tu; }
 
     // Simple comparison operators. Note: we only allow comparison between TimeDeltas.
-    inline bool operator<(const TimeDelta& delta) const { return time_delta_ < delta.time_delta_; }
-    inline bool operator>(const TimeDelta& delta) const { return time_delta_ > delta.time_delta_; }
-    inline bool operator<=(const TimeDelta& delta) const { return time_delta_ <= delta.time_delta_; }
-    inline bool operator>=(const TimeDelta& delta) const { return time_delta_ >= delta.time_delta_; }
-    inline bool operator==(const TimeDelta& delta) const { return time_delta_ == delta.time_delta_; }
-    inline bool operator!=(const TimeDelta& delta) const { return time_delta_ != delta.time_delta_; }
+    constexpr bool operator<(const TimeDelta& delta) const { return time_delta_ < delta.time_delta_; }
+    constexpr bool operator>(const TimeDelta& delta) const { return time_delta_ > delta.time_delta_; }
+    constexpr bool operator<=(const TimeDelta& delta) const { return time_delta_ <= delta.time_delta_; }
+    constexpr bool operator>=(const TimeDelta& delta) const { return time_delta_ >= delta.time_delta_; }
+    constexpr bool operator==(const TimeDelta& delta) const { return time_delta_ == delta.time_delta_; }
+    constexpr bool operator!=(const TimeDelta& delta) const { return time_delta_ != delta.time_delta_; }
 
     // Simple arithmetic operators.
-    inline TimeDelta operator+(const TimeDelta& delta) const { return time_delta_ + delta.time_delta_; }
-    inline TimeDelta operator-(const TimeDelta& delta) const { return time_delta_ - delta.time_delta_; }
-    inline TimeDelta operator*(int val) const { return time_delta_ * val; }
-    inline TimeDelta operator/(int val) const { return time_delta_ / val; }
-    inline float operator/(const TimeDelta& delta) const {return float(time_delta_) / float(delta.time_delta_); }
+    constexpr TimeDelta operator+(const TimeDelta& delta) const { return time_delta_ + delta.time_delta_; }
+    constexpr TimeDelta operator-(const TimeDelta& delta) const { return time_delta_ - delta.time_delta_; }
+    constexpr TimeDelta operator*(int val) const { return time_delta_ * val; }
+    constexpr TimeDelta operator/(int val) const { return time_delta_ / val; }
+    constexpr float operator/(const TimeDelta& delta) const {return float(time_delta_) / float(delta.time_delta_); }
 
     // Arithmetic assignment operators.
     inline TimeDelta &operator+=(const TimeDelta& delta) { time_delta_ += delta.time_delta_; return *this; }
@@ -47,7 +47,7 @@ public:
     }
 
 private:
-    inline TimeDelta(int delta): time_delta_(delta) {}
+    constexpr TimeDelta(int delta): time_delta_(delta) {}
     int time_delta_;
     friend class Timestamp;
 };
@@ -57,33 +57,33 @@ private:
 class Timestamp {
 public:
     // Constructors.
-    inline Timestamp(): time_(0) {} // Default constructor. We need it to be able to keep Timestamp in structs.
-    inline Timestamp(const Timestamp& other): time_(other.time_) {}
+    constexpr Timestamp(): time_(0) {} // Default constructor. We need it to be able to keep Timestamp in structs.
+    constexpr Timestamp(const Timestamp& other): time_(other.time_) {}
     inline Timestamp& operator=(const Timestamp& other) { time_ = other.time_; return *this; }
-    inline unsigned int get_value_unsafe(TimeUnit tu) const { return time_ / tu; }
+    constexpr unsigned int get_value_unsafe(TimeUnit tu) const { return time_ / tu; }
 
     // Static getters.
     static Timestamp cur_time(); // Implementation will try to get the best resolution possible.
 
     // Create TimeDelta from a pair of Timestamps. Note that the wrapping is handled here correctly as we're converting to a signed int.
-    inline TimeDelta operator-(const Timestamp& other) const { return time_ - other.time_; }
+    constexpr TimeDelta operator-(const Timestamp& other) const { return time_ - other.time_; }
 
     // Simple arithmetic operators with TimeDelta-s. Both operands are converted to uint32_t
-    inline Timestamp operator+(const TimeDelta& delta) const { return time_ + delta.time_delta_; }
-    inline Timestamp operator-(const TimeDelta& delta) const { return time_ - delta.time_delta_; }
+    constexpr Timestamp operator+(const TimeDelta& delta) const { return time_ + delta.time_delta_; }
+    constexpr Timestamp operator-(const TimeDelta& delta) const { return time_ - delta.time_delta_; }
     inline Timestamp &operator+=(const TimeDelta& delta) { time_ += delta.time_delta_; return *this; }
     inline Timestamp &operator-=(const TimeDelta& delta) { time_ -= delta.time_delta_; return *this; }
 
     // Simple wrapping-aware comparison operators using conversion to signed int.
-    inline bool operator< (const Timestamp& other) const { return int(time_ - other.time_) <  0; }
-    inline bool operator> (const Timestamp& other) const { return int(time_ - other.time_) >  0; }
-    inline bool operator<=(const Timestamp& other) const { return int(time_ - other.time_) <= 0; }
-    inline bool operator>=(const Timestamp& other) const { return int(time_ - other.time_) >= 0; }
-    inline bool operator==(const Timestamp& other) const { return int(time_ - other.time_) == 0; }
-    inline bool operator!=(const Timestamp& other) const { return int(time_ - other.time_) != 0; }
+    constexpr bool operator< (const Timestamp& other) const { return int(time_ - other.time_) <  0; }
+    constexpr bool operator> (const Timestamp& other) const { return int(time_ - other.time_) >  0; }
+    constexpr bool operator<=(const Timestamp& other) const { return int(time_ - other.time_) <= 0; }
+    constexpr bool operator>=(const Timestamp& other) const { return int(time_ - other.time_) >= 0; }
+    constexpr bool operator==(const Timestamp& other) const { return int(time_ - other.time_) == 0; }
+    constexpr bool operator!=(const Timestamp& other) const { return int(time_ - other.time_) != 0; }
 
 private:
-    inline Timestamp(unsigned int time): time_(time) {}
+    constexpr Timestamp(unsigned int time): time_(time) {}
     unsigned int time_;  // Think about this as some global time mod 2^32.
 };
 

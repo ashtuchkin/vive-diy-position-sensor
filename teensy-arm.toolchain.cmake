@@ -59,7 +59,7 @@ set_property(CACHE TEENSY_USB_MODE PROPERTY STRINGS SERIAL HID SERIAL_HID MIDI R
 set(TARGET_FLAGS "-mcpu=cortex-m4 -mthumb -mfp16-format=ieee")
 set(OPTIMIZE_FLAGS "-O2" CACHE STRING "Optimization flags")  # Remember to reset cache and rebuild cmake when changing this.
 set(CMAKE_C_FLAGS "${OPTIMIZE_FLAGS} -Wall -nostdlib -ffunction-sections -fdata-sections ${TARGET_FLAGS}" CACHE STRING "C/C++ flags")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-exceptions -fno-rtti -felide-constructors -std=c++11 -fsingle-precision-constant" CACHE STRING "c++ flags")
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=gnu++14 -fno-exceptions -fno-rtti -felide-constructors -fsingle-precision-constant -Woverloaded-virtual" CACHE STRING "c++ flags")
 
 link_libraries(m)
 set(LINKER_FLAGS "--gc-sections,--relax,--defsym=__rtc_localtime=0" CACHE STRING "Ld flags")
@@ -114,7 +114,8 @@ function(add_firmware_targets TARGET_NAME)
 
     add_custom_target(${TARGET_NAME}_Assembler
             COMMAND ${CMAKE_OBJDUMP} --demangle --disassemble --headers --wide $<TARGET_FILE_NAME:${TARGET_NAME}> > ${CMAKE_SOURCE_DIR}/build/source.S
-            COMMAND ${CMAKE_OBJDUMP} --demangle --syms $<TARGET_FILE_NAME:${TARGET_NAME}> | sort > ${CMAKE_SOURCE_DIR}/build/source_symbols.txt
+            COMMAND ${CMAKE_OBJDUMP} --demangle --disassemble --source --wide $<TARGET_FILE_NAME:${TARGET_NAME}> > ${CMAKE_SOURCE_DIR}/build/source-with-text.S
+            COMMAND ${CMAKE_OBJDUMP} --demangle --syms $<TARGET_FILE_NAME:${TARGET_NAME}> | sort > ${CMAKE_SOURCE_DIR}/build/source-symbols.txt
     )
 
     # See https://github.com/Koromix/ty

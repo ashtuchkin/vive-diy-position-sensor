@@ -1,8 +1,8 @@
 #include "string_utils.h"
 #include <Arduino.h>
 
-static const int max_input_str_len = 256;
-static const int max_words = 64;
+constexpr int max_input_str_len = 256;
+constexpr int max_words = 64;
 
 // Non-blocking version of Stream.readBytesUntil('\n', ...). Returns line if found, or NULL if no line.
 char *read_line(Stream &stream) {
