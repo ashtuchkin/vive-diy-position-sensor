@@ -19,6 +19,7 @@ set(SOURCE_FILES
         src/mavlink.cpp
         src/outputs.cpp
         src/pulse_processor.cpp
+        src/platform.cpp
         
         src/primitives/timestamp.cpp
         src/primitives/string_utils.cpp

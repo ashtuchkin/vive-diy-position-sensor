@@ -33,3 +33,13 @@ https://google.github.io/styleguide/cppguide.html
 ### Git submodule management
  * Update submodules to latest on branches/tags: `git submodule update --remote`
  * When changing .gitmodules, do `git submodule sync`
+
+### GCC Headers search for #include <..>
+
+    /usr/local/Caskroom/gcc-arm-embedded/6_2-2016q4,20161216/gcc-arm-none-eabi-6_2-2016q4
+      /arm-none-eabi/include/c++/6.2.1
+      /arm-none-eabi/include/c++/6.2.1/arm-none-eabi
+      /arm-none-eabi/include/c++/6.2.1/backward
+      /lib/gcc/arm-none-eabi/6.2.1/include
+      /lib/gcc/arm-none-eabi/6.2.1/include-fixed
+      /arm-none-eabi/include

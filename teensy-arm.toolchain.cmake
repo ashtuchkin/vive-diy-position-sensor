@@ -58,19 +58,19 @@ set_property(CACHE TEENSY_USB_MODE PROPERTY STRINGS SERIAL HID SERIAL_HID MIDI R
 
 set(TARGET_FLAGS "-mcpu=cortex-m4 -mthumb -mfp16-format=ieee")
 set(OPTIMIZE_FLAGS "-O2" CACHE STRING "Optimization flags")  # Remember to reset cache and rebuild cmake when changing this.
-set(CMAKE_C_FLAGS "${OPTIMIZE_FLAGS} -Wall -nostdlib -ffunction-sections -fdata-sections ${TARGET_FLAGS}" CACHE STRING "C/C++ flags")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=gnu++14 -fno-exceptions -fno-rtti -felide-constructors -fsingle-precision-constant -Woverloaded-virtual" CACHE STRING "c++ flags")
+set(CMAKE_C_FLAGS "${OPTIMIZE_FLAGS} -Wall -ffunction-sections -fdata-sections ${TARGET_FLAGS}" CACHE STRING "C/C++ flags")
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=gnu++14 -fno-rtti -fsingle-precision-constant -Woverloaded-virtual" CACHE STRING "C++ flags")
+
+set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "" FORCE)  # Don't do -O3 because it increases the size. Just remove asserts.
+set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "" FORCE)
 
 link_libraries(m)
 set(LINKER_FLAGS "--gc-sections,--relax,--defsym=__rtc_localtime=0" CACHE STRING "Ld flags")
 set(CXX_LINKER_FLAGS "${OPTIMIZE_FLAGS} -Wl,${LINKER_FLAGS} ${TARGET_FLAGS} -T${TEENSY_ROOT}/mk20dx256.ld")
 
-set(CMAKE_SHARED_LINKER_FLAGS "${CXX_LINKER_FLAGS}" CACHE STRING "Linker flags" FORCE)
-set(CMAKE_MODULE_LINKER_FLAGS "${CXX_LINKER_FLAGS}" CACHE STRING "Linker flags" FORCE)
-set(CMAKE_EXE_LINKER_FLAGS "${CXX_LINKER_FLAGS}" CACHE STRING "Linker flags" FORCE)
-
-# Don't pass regular CMAKE_CXX_FLAGS because that causes undefined symbols
-set(CMAKE_CXX_LINK_EXECUTABLE "<CMAKE_CXX_COMPILER> <CMAKE_CXX_LINK_FLAGS> <LINK_FLAGS> <OBJECTS>  -o <TARGET> <LINK_LIBRARIES>")
+set(CMAKE_SHARED_LINKER_FLAGS "${CXX_LINKER_FLAGS}" CACHE STRING "Shared Linker flags" FORCE)
+set(CMAKE_MODULE_LINKER_FLAGS "${CXX_LINKER_FLAGS}" CACHE STRING "Module Linker flags" FORCE)
+set(CMAKE_EXE_LINKER_FLAGS "${CXX_LINKER_FLAGS}" CACHE STRING "Executable Linker flags" FORCE)
 
 
 add_definitions("-DARDUINO=${ARDUINO_VERSION}")
@@ -79,6 +79,7 @@ add_definitions("-D__${TEENSY_MODEL}__")
 add_definitions("-DUSB_${TEENSY_USB_MODE}")
 add_definitions("-DF_CPU=${TEENSY_FREQUENCY}000000")
 add_definitions("-DLAYOUT_US_ENGLISH")
+add_definitions("-DNEW_H")  # Don't include new.h header as it defines non-standard operator new().
 add_definitions("-MMD")
 
 # Define target for the Teensy 'core' library.
@@ -88,6 +89,7 @@ if (NOT TARGET TeensyCore AND NOT ${CMAKE_SOURCE_DIR} MATCHES "CMakeTmp")
     file(GLOB TEENSY_C_CORE_FILES "${TEENSY_ROOT}/*.c")
     list(REMOVE_ITEM TEENSY_C_CORE_FILES "${TEENSY_ROOT}/math_helper.c")  # legacy cmsis file - not needed anyway.
     file(GLOB TEENSY_CXX_CORE_FILES "${TEENSY_ROOT}/*.cpp")
+    list(REMOVE_ITEM TEENSY_CXX_CORE_FILES "${TEENSY_ROOT}/new.cpp")  # Don't use non-standard operator new.
     add_library(TeensyCore ${TEENSY_C_CORE_FILES} ${TEENSY_CXX_CORE_FILES})
     link_libraries(TeensyCore)
     include_directories(${TEENSY_ROOT})
