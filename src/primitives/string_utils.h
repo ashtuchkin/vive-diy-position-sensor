@@ -32,5 +32,6 @@ struct HashedWord {
     inline bool as_float(float *res) { return parse_float(word, res); }
 };
 
-// Return a static, zero-terminated array of hashes of provided words.
-HashedWord *hash_words(char **words);
+// Return a static, zero-terminated array of hashes for words in given string.
+// NOTE: Provided string is changed - null characters are added after words.
+HashedWord *hash_words(char *str);

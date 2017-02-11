@@ -1,4 +1,5 @@
 #include "string_utils.h"
+#include <utility>
 #include <Arduino.h>
 
 constexpr int max_input_str_len = 256;
@@ -87,19 +88,21 @@ bool suffixed_by_int(char *word, char **first_digit, uint32_t *value) {
 }
 
 // Return a static, zero-terminated array of hashes of provided words.
-HashedWord *hash_words(char **words) {
+HashedWord *hash_words(char *str) {
     static HashedWord hashes[max_words+1];
     uint32_t i = 0;
-    for (; *words && i < max_words; words++, i++) {
-        char *cur_word = hashes[i].word = *words;
-        char *first_digit;
+    char *cur_word, *first_digit;
+    for (; (cur_word = next_word(&str)) && i < max_words; i++) {
+        hashes[i].word = cur_word;
         if (suffixed_by_int(cur_word, &first_digit, &hashes[i].idx)) {
-            char digit = *first_digit; *first_digit = 0;  // Temporarily replace first digit with '\0' to end string.
-            hashes[i].hash = runtime_hash("#", runtime_hash(cur_word)); // Make hash of curword + "#"
-            *first_digit = digit;
+            char c = '#';
+            // Create hash of curword + '#'
+            std::swap(*first_digit, c); 
+            hashes[i].hash = runtime_hash(cur_word, first_digit-cur_word+1);
+            std::swap(*first_digit, c);
             // hashes[i].idx is set in suffixed_by_int
         } else { // Regular case.
-            hashes[i].hash = runtime_hash(cur_word);
+            hashes[i].hash = runtime_hash(cur_word, strlen(cur_word));
             hashes[i].idx = -1;  // To avoid clashing with existing indexes.
         }
     }
