@@ -30,7 +30,7 @@ GeometryTextOutput::GeometryTextOutput(Print &stream, uint32_t object_idx)
 }
 
 void GeometryTextOutput::consume(const ObjectGeometry& f) {
-    const char* time = "<time>"; // TODO.
-    stream_->printf("GEO\t%d\t%s\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", object_idx_, time,
+    auto time = f.time.get_value_unsafe(msec); // TODO.
+    stream_->printf("GEO%d\t%u\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\n", object_idx_, time,
         f.xyz[0], f.xyz[1], f.xyz[2], f.q[0], f.q[1], f.q[2], f.q[3]);
 }

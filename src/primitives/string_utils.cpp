@@ -9,9 +9,11 @@ constexpr int max_words = 64;
 char *read_line(Stream &stream) {
     static char input_string_buf[max_input_str_len];
     static int input_string_pos = 0;
-    while (stream.available()) {
-        char next_char = stream.read();
-        if (next_char == '\n') {
+    while (true) {
+        int next_char = stream.read();
+        if (next_char == -1) {
+            return NULL;
+        } else if (next_char == '\n') {
             input_string_buf[input_string_pos] = 0;
             input_string_pos = 0;
             return input_string_buf;
@@ -19,7 +21,6 @@ char *read_line(Stream &stream) {
             input_string_buf[input_string_pos++] = next_char;
         }
     }
-    return NULL;
 }
 
 // Parses provided string to null-terminated array of trimmed strings.
@@ -77,14 +78,11 @@ bool parse_float(const char *str, float *res) {
 
 // Returns true if the word is suffixed by a valid number.
 bool suffixed_by_int(char *word, char **first_digit, uint32_t *value) {
-    char *p = word + strlen(word) - 1; // Last char of the word.
-    bool seen_digit = false;
-    while (p != word && '0' <= *p && *p <= '9') {  // Go backwards if seeing digits.
-        p--; 
-        seen_digit = true; 
-    }
+    char *p = word + strlen(word); // \0 char after the word.
+    while (p != word && '0' <= *(p-1) && *(p-1) <= '9')  // Go backwards if seeing digits.
+        p--;
     // Fail if either no digits found, or all of them are digits.
-    return seen_digit && p != word && parse_uint32(*first_digit = p+1, value);
+    return *p && p != word && parse_uint32(*first_digit = p, value);
 }
 
 // Return a static, zero-terminated array of hashes of provided words.
@@ -96,7 +94,7 @@ HashedWord *hash_words(char *str) {
         hashes[i].word = cur_word;
         if (suffixed_by_int(cur_word, &first_digit, &hashes[i].idx)) {
             char c = '#';
-            // Create hash of curword + '#'
+            // Create hash of cur_word without digits, but with prefix '#'
             std::swap(*first_digit, c); 
             hashes[i].hash = runtime_hash(cur_word, first_digit-cur_word+1);
             std::swap(*first_digit, c);

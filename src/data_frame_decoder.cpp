@@ -2,7 +2,15 @@
 #include "message_logging.h"
 
 DataFrameDecoder::DataFrameDecoder(uint32_t base_station_idx)
-    : base_station_idx_(base_station_idx) {
+    : base_station_idx_(base_station_idx)
+    , prev_cycle_idx_(0)
+    , preamble_len_(0)
+    , skip_one_set_bit_(false)
+    , cur_byte_(0)
+    , cur_bit_idx_(0)
+    , data_idx_(0)
+    , data_frame_len_(0)
+    , data_frame_() {
 }
 
 void DataFrameDecoder::consume(const DataFrameBit& frame_bit) {

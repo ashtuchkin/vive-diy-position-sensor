@@ -30,7 +30,7 @@ public:
 
     inline T pop() {
         if (!empty()) {
-            return elems_[--size_ - 1];
+            return elems_[--size_];
         } else {
             // assert.
             return elems_[0];

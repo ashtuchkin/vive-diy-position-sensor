@@ -5,6 +5,8 @@
 template<typename T>
 class Consumer {
 public:
+    Consumer() : next_(0) {}
+
     // Function that needs to be overloaded by consumer to process message of given type.
     virtual void consume(const T& val) = 0;
 
@@ -31,6 +33,8 @@ public:
 template<typename T, int out_idx = 0>
 class Producer {
 public:
+    Producer() : consumer_(0), logger_(0) {}
+
     // This method 'connects' (subscribes) consumer to producer.
     void connect(Consumer<T> *consumer) {
         // TODO: assert(!consumer->next_cons_);  // This assert will make sure we don't have N:M fan-out.

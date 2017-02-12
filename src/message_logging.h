@@ -52,7 +52,7 @@ public:
     }
     virtual void print_logs(Print &stream) {
         uint32_t has_idx = idx_ != (uint32_t)-1;
-        stream.printf("%s%.*u produced %d items", name_, has_idx, has_idx && idx_, counter_);
+        stream.printf("%s%.*u produced %d items\n", name_, has_idx, has_idx && idx_, counter_);
         counter_ = 0;
     }
 private:

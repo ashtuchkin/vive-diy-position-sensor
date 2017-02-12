@@ -8,6 +8,18 @@ enum PhaseFixLevels {
     kPhaseFixFinal = 16,
 };
 
+CyclePhaseClassifier::CyclePhaseClassifier()
+    : prev_full_cycle_idx_(0)
+    , phase_history_(0)
+    , fix_level_(kPhaseFixNone)
+    , phase_shift_(0)
+    , pulse_base_len_(0.0)
+    , bits_()
+    , debug_print_state_(false) {
+    reset();
+}
+
+
 void CyclePhaseClassifier::process_pulse_lengths(uint32_t cycle_idx, const TimeDelta (&pulse_lens)[num_base_stations]) {
     int cur_phase_id = -1;
     if (pulse_lens[0] > TimeDelta(0, usec) && pulse_lens[1] > TimeDelta(0, usec)) {

@@ -73,6 +73,7 @@ static_assert("ab§da"_hash == 3670539345, "MurmurHash3 validity test");
 
 // Simple, append-only hash table with constant capacity.
 /*
+// NOTE: This is not tested.
 template<typename T, uint32_t C>
 class HashTable {
     static_assert(C > 0, "Capacity should be positive.");

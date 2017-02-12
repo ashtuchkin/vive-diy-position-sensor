@@ -14,6 +14,8 @@ typedef DataFrameBit (&DataFrameBitPair)[num_base_stations];
 //   3) Base 2 (C), vertical sweep
 class CyclePhaseClassifier {
 public:
+    CyclePhaseClassifier();
+    
     // Process the pulse lengths for current cycle (given by incrementing cycle_idx).
     void process_pulse_lengths(uint32_t cycle_idx, const TimeDelta (&pulse_lens)[num_base_stations]);
 

@@ -19,7 +19,9 @@ void mavlink_send_uart_bytes(mavlink_channel_t chan, const uint8_t *chars, unsig
 #include <common/mavlink.h>
 
 // Insanity ends here. Back to normal.
-#include <Arduino.h>  // Only for Print class.
+#include <assert.h>
+#include <Print.h>
+#include <avr_emulation.h>
 #include "primitives/vector.h"
 
 // Static list of streams we will output to.
@@ -30,13 +32,12 @@ void mavlink_send_uart_bytes(mavlink_channel_t chan, const uint8_t *chars, unsig
     output_streams[chan]->write(chars, length);
 }
 
-MavlinkGeometryOutput::MavlinkGeometryOutput(Print &stream) {
-    if (!output_streams.full()) {
-        stream_idx_ = output_streams.size();
-        output_streams.push(&stream);
-    } else {
-        // Assert: full.
-    }
+MavlinkGeometryOutput::MavlinkGeometryOutput(Print &stream)
+    : stream_idx_(output_streams.size())
+    , debug_print_state_(false)
+    , debug_last_ms_(0) {
+    assert(!output_streams.full());
+    output_streams.push(&stream);
 }
 
 void MavlinkGeometryOutput::reset_all() {
@@ -70,7 +71,7 @@ void MavlinkGeometryOutput::debug_print(Print &stream) {
     if (debug_print_state_) {
         uint32_t now_ms = millis();
         if (now_ms - debug_last_ms_ > 50)
-            Serial.printf("Late Mavlink message: %dms\n", now_ms - debug_last_ms_);
+            stream.printf("Late Mavlink message: %dms\n", now_ms - debug_last_ms_);
         debug_last_ms_ = now_ms;
     }
 }

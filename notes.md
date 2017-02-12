@@ -25,7 +25,8 @@ Later:
  * [ ] Create multi-sensor geometry processing unit
  * [ ] Add unit testing
  * [ ] DataFrame: Check CRC32; Decode values.
-
+ * [ ] Split PersistentSettings to Settings and Persistent<>
+ * [ ] (Maybe) Introduce EASTL library and all its niceties like fixed_vector. Tried it and it looks problematic (platform not supported + threading issues).
 
 ### Style guide
 https://google.github.io/styleguide/cppguide.html

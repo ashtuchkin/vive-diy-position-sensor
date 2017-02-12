@@ -46,5 +46,6 @@ private:
     // Output data: angles.
     SensorAnglesFrame angles_frame_;
 
+    TimeDelta time_from_last_long_pulse_;
     bool debug_print_state_;
 };

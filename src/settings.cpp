@@ -1,11 +1,12 @@
 // This file manages reading/writing data to EEPROM and configuration mode.
 #include "settings.h"
-#include <Arduino.h>
 #include "input_cmp.h"
 #include "primitives/string_utils.h"
 
-constexpr uint32_t current_settings_version = 0xbabe0001;
-constexpr uint32_t * eeprom_addr = 0;
+#include <Arduino.h>
+
+constexpr uint32_t current_settings_version = 0xbabe0002;
+constexpr uint32_t *eeprom_addr = 0;
 /* Example settings
 reset
 i0 pin 12 positive
@@ -15,7 +16,7 @@ b1 origin 1.718700 2.543170 0.725060 matrix 0.458350 -0.649590 0.606590 0.028970
 
 PersistentSettings settings;
 
-PersistentSettings::PersistentSettings() {
+PersistentSettings::PersistentSettings() : is_configured_(false) {
     read_from_eeprom();
 }
 
@@ -42,7 +43,8 @@ void PersistentSettings::restart_in_configuration_mode() {
 }
 
 
-uint32_t input_type_names[kMaxInputType] = {"cmp"_hash, "ftm"_hash, "port_irq"_hash};
+uint32_t input_type_hashes[kMaxInputType] = {"cmp"_hash, "ftm"_hash, "port_irq"_hash};
+const char *input_type_names[kMaxInputType] = {"cmp", "ftm", "port_irq"};
 
 void print_input_def(uint32_t idx, const InputDefinition &inp_def, Stream &stream) {
     stream.printf("i%d pin %d %s %s", idx, inp_def.pin, inp_def.pulse_polarity ? "positive" : "negative", input_type_names[inp_def.input_type]);
@@ -55,29 +57,25 @@ bool parse_input_def(HashedWord *input_words, InputDefinition *inp_def, Stream &
     if (*input_words == "pin"_hash)
         input_words++; // Ignore "pin" word
     
-    if (!input_words->as_uint32(&inp_def->pin) || inp_def->pin >= CORE_NUM_TOTAL_PINS) {
+    if (!input_words++->as_uint32(&inp_def->pin) || inp_def->pin >= CORE_NUM_TOTAL_PINS) {
         stream.printf("Invalid/missing pin number\n"); return false;
     }
-    input_words++;
 
-    if (!input_words->word) {
-        stream.printf("Missing polarity\n"); return false;
-    } else if (*input_words == "positive"_hash) {
-        inp_def->pulse_polarity = true;
-    } else if (*input_words == "negative"_hash) {
-        inp_def->pulse_polarity = false;
-    } else {
-        stream.printf("Unknown polarity: %s; Only 'positive' and 'negative' supported.\n", input_words->word); return false;
+    switch (*input_words++) {
+    case 0: stream.printf("Missing polarity\n"); return false;
+    case "positive"_hash: inp_def->pulse_polarity = true; break;
+    case "negative"_hash: inp_def->pulse_polarity = false; break;
+    default: 
+        stream.printf("Unknown polarity. Only 'positive' and 'negative' supported.\n"); return false;
     }
-    input_words++;
 
-    if (!input_words->word) {
+    if (!*input_words) {
         // Use default input type: Comparator
         inp_def->input_type = kCMP;
     } else {
         int i; 
         for (i = 0; i < kMaxInputType; i++)
-            if (*input_words == input_type_names[i]) {
+            if (*input_words == input_type_hashes[i]) {
                 inp_def->input_type = (InputType)i;
                 break;
             }
@@ -89,7 +87,7 @@ bool parse_input_def(HashedWord *input_words, InputDefinition *inp_def, Stream &
 
     if (inp_def->input_type == kCMP) {
         // For comparators, also read initial threshold level.
-        if (!input_words->word) {
+        if (!*input_words) {
             inp_def->initial_cmp_threshold = 20; // Default threshold level.
         } else if (!input_words->as_uint32(&inp_def->initial_cmp_threshold) || inp_def->initial_cmp_threshold >= 64) {
             stream.printf("Invalid threshold level. Supported values: 0-63.\n"); return false;
@@ -98,17 +96,18 @@ bool parse_input_def(HashedWord *input_words, InputDefinition *inp_def, Stream &
         stream.printf("ftm and port_irq input types are not supported yet.\n"); return false;
     }
     return true;
-}
+} 
 
 bool PersistentSettings::validate_input_def(uint32_t idx, const InputDefinition &inp_def, Stream &stream) {
     char error_message[120];
     bool is_valid = true;
+    /*
     uint32_t len = (idx == inputs_.size()) ? idx+1 : inputs_.size();
     for (uint32_t input_idx = 0; input_idx < len; input_idx++) {
         const InputDefinition& input_def = (input_idx == idx) ? inp_def : inputs_[input_idx];
         switch (input_def.input_type) {
-            case kPort: /* TODO */ break; 
-            case kFTM: /* TODO */ break;
+            case kPort: break; 
+            case kFTM: break;
             case kCMP:
                 if (!InputCmpNode::create(input_idx, input_def, error_message)) { 
                     stream.printf("Error: %s", error_message); 
@@ -119,6 +118,7 @@ bool PersistentSettings::validate_input_def(uint32_t idx, const InputDefinition 
         }
     }
     InputCmpNode::reset_all();
+    */
     return is_valid;
 }
 
@@ -154,7 +154,7 @@ void PersistentSettings::initialize_from_user_input(Stream &stream) {
         char *input_cmd = nullptr;
         while (!input_cmd)
             input_cmd = read_line(stream);
-        HashedWord *input_words = hash_words(parse_words(input_cmd));
+        HashedWord *input_words = hash_words(input_cmd);
 
         if (!input_words->word || input_words->word[0] == '#')  // Do nothing on comments and empty lines.
             continue;

@@ -6,6 +6,8 @@ class CircularBuffer {
     static_assert(!(C & (C-1)), "Only power-of-two sizes of circular buffer are supported.");
     static_assert(C > 0, "Please provide positive capacity");
 public:
+    CircularBuffer() : read_idx_(0), write_idx_(0) {}
+
     inline bool empty() {
         return read_idx_ == write_idx_;
     }

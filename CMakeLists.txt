@@ -8,18 +8,19 @@ project(vive-diy-position-sensor)
 
 set(SOURCE_FILES
         src/main.cpp
-        src/setup.cpp
         src/settings.cpp
-
+        
         src/cycle_phase_classifier.cpp
         src/data_frame_decoder.cpp
+        src/debug_node.cpp
         src/geometry.cpp
         src/input.cpp
         src/input_cmp.cpp
         src/mavlink.cpp
         src/outputs.cpp
-        src/pulse_processor.cpp
         src/platform.cpp
+        src/pulse_processor.cpp
+        src/vive_sensors_pipeline.cpp
         
         src/primitives/timestamp.cpp
         src/primitives/string_utils.cpp

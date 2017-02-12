@@ -23,7 +23,12 @@ enum CycleFixLevels {
 };
 
 PulseProcessor::PulseProcessor(uint32_t num_inputs) 
-    : num_inputs_(num_inputs) {
+    : num_inputs_(num_inputs)
+    , cycle_fix_level_(0)
+    , cycle_idx_(0)
+    , angles_frame_()
+    , time_from_last_long_pulse_(0, usec)
+    , debug_print_state_(false) {
     angles_frame_.sensors.set_size(num_inputs);
     angles_frame_.phase_id = -1;
 }
@@ -49,8 +54,8 @@ void PulseProcessor::process_long_pulse(const Pulse &p) {
             Pulse last_long_pulse = unclassified_long_pulses_.pop();
             unclassified_long_pulses_.clear();
 
-            if ((p.start_time - last_long_pulse.start_time)
-                .within_range_of(cycle_period - long_pulse_starts[1], long_pulse_starts_accepted_range)) {
+            time_from_last_long_pulse_ = p.start_time - last_long_pulse.start_time;
+            if (time_from_last_long_pulse_.within_range_of(cycle_period - long_pulse_starts[1], long_pulse_starts_accepted_range)) {
                 // Found candidate first pulse.
                 reset_cycle_pulses();
                 cycle_fix_level_ = kCycleFixCandidate;
@@ -204,9 +209,9 @@ void PulseProcessor::debug_print(Print &stream) {
     producer_debug_print<SensorAnglesFrame>(this, stream);
     producer_debug_print<DataFrameBit>(this, stream);
     if (debug_print_state_) {
-        stream.printf("PulseProcessor: fix %d, cycle %d, num pulses %d %d %d %d\n", 
+        stream.printf("PulseProcessor: fix %d, cycle id %d, num pulses %d %d %d %d, time from last pulse %d\n", 
             cycle_fix_level_, cycle_idx_, cycle_long_pulses_[0].size(), cycle_long_pulses_[1].size(), 
-            cycle_short_pulses_.size(), unclassified_long_pulses_.size());
+            cycle_short_pulses_.size(), unclassified_long_pulses_.size(), time_from_last_long_pulse_.get_value(usec));
     }
 }
 

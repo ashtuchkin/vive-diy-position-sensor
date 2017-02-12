@@ -1,10 +1,6 @@
-#include <Arduino.h>
-#include "common.h"
-#include "primitives/workers.h"
-//#include "settings.h"
+#include "vive_sensors_pipeline.h"
+#include "settings.h"
 
-// Global static data
-Workforce workforce;
 /*
             // 3. Calculate geometry & output it.
             if (d.fix_acquired && have_valid_input_point(d, cur_time)) {
@@ -50,30 +46,30 @@ void output_position(uint32_t input_idx, InputData &d, const float pos[3], float
 }
 */
 
+#include <avr_emulation.h>
+#include <usb_serial.h>
 
-// Main loop. All asynchronous calculations happen here.
-void loop() {
-    Timestamp cur_time = Timestamp::cur_time();
 
-    // Process debug I/O
-    Stream &debug_stream = Serial;
-    while (char *input_cmd = read_line(debug_stream)) {
-        char **input_words = parse_words(input_cmd);
-        if (input_words[0] && !workforce.debug_cmd(hash_words(input_words)))
-            debug_stream.println("Unknown command.");
+extern "C" int main() {
+    // Initialize core devices.
+    Serial.begin(9600);
+    pinMode(LED_BUILTIN, OUTPUT);
+
+    // Initialize persistent settings interactively from user input, if needed.
+    if (settings.needs_configuration()) {
+        digitalWrite(LED_BUILTIN, HIGH);
+        settings.initialize_from_user_input(Serial);
     }
 
-    static Timestamp debug_next_run(cur_time);
-    if (throttle_ms(TimeDelta(1000, ms), cur_time, &debug_next_run))
-        workforce.debug_print(debug_stream);
+    // Create worker node pipeline from settings.
+    auto pipeline = create_vive_sensor_pipeline(settings);
 
-    // Blink once a second in normal mode without a fix. TODO: Change it when fix is achieved.
-    static Timestamp blink_next_run(cur_time);
-    if (throttle_ms(TimeDelta(1, sec), cur_time, &blink_next_run)) {
-        digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
+    // Register & start input nodes' interrupts.
+    pipeline->start();
+
+    // Main loop.
+    while (true) {
+        // Process pulses, cycles and output data.
+        pipeline->do_work(Timestamp::cur_time());
     }
-
-    // Process pulses, cycles and output data.
-    workforce.do_work(cur_time);
-
 }

@@ -7,8 +7,8 @@ class Stream;
 class PersistentSettings {
 public:
     // Data accessors
-    inline const Vector<InputDefinition, max_num_inputs> &inputs() { return inputs_; }
-    inline const Vector<BaseStationGeometry, num_base_stations> &base_stations() { return base_stations_; }
+    inline const Vector<InputDefinition, max_num_inputs> &inputs() const { return inputs_; }
+    inline const Vector<BaseStationGeometry, num_base_stations> &base_stations() const { return base_stations_; }
     // TODO: Output type
 
 

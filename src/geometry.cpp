@@ -1,6 +1,7 @@
 #include "geometry.h"
 #include <arm_math.h>
 #include "message_logging.h"
+#include <assert.h>
 
 /*
 // NE angle = Angle(North - X axis).
@@ -14,8 +15,9 @@ static float ned_rotation[9] = {
 static arm_matrix_instance_f32 ned_rotation_mat = {3, 3, ned_rotation};
 */
 PointGeometryBuilder::PointGeometryBuilder(const Vector<BaseStationGeometry, num_base_stations> &base_stations, uint32_t input_idx)
-    : base_stations_(base_stations), input_idx_(input_idx) {
-    // TODO: Assert that base_stations->size() == 2.
+    : base_stations_(base_stations)
+    , input_idx_(input_idx) {
+    assert(base_stations.size() >= 2);
 }
 
 
