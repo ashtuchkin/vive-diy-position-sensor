@@ -90,8 +90,9 @@ void DataFrameDecoder::reset() {
 }
 
 bool DataFrameDecoder::debug_cmd(HashedWord *input_words) {
-    if (*input_words++ == "dataframe"_hash) {
-        return producer_debug_cmd(this, input_words, "DataFrame");
+    if (*input_words == "dataframe#"_hash && input_words->idx == base_station_idx_) {
+        input_words++;
+        return producer_debug_cmd(this, input_words, "DataFrame", base_station_idx_);
     }
     return false;
 }

@@ -19,7 +19,11 @@ public:
     void restart_in_configuration_mode();
 
 private:
-    bool validate_input_def(uint32_t idx, const InputDefinition &inp_def, Stream &stream);
+    bool validate_setup(Print &error_stream);
+
+    template<typename T, unsigned arr_len>
+    void set_value(Vector<T, arr_len> &arr, uint32_t idx, HashedWord *input_words, Print& stream);
+
     void read_from_eeprom();
     void write_to_eeprom();
 

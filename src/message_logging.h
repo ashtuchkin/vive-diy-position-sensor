@@ -22,13 +22,14 @@ inline void print_value<SensorAnglesFrame>(Print &stream, const SensorAnglesFram
 
 template<>
 inline void print_value<DataFrameBit>(Print &stream, const DataFrameBit& val) {
+
     stream.printf("TODO");
 }
 
 template<>
 inline void print_value<DataFrame>(Print &stream, const DataFrame& frame) {
     for (uint32_t i = 0; i < frame.bytes.size(); i++)
-        stream.printf(" %02X", frame.bytes[i]);
+        stream.printf("%02X ", frame.bytes[i]);
 }
 
 template<>
@@ -52,7 +53,7 @@ public:
     }
     virtual void print_logs(Print &stream) {
         uint32_t has_idx = idx_ != (uint32_t)-1;
-        stream.printf("%s%.*u produced %d items\n", name_, has_idx, has_idx && idx_, counter_);
+        stream.printf("%s%.*u: %d items\n", name_, has_idx, has_idx && idx_, counter_);
         counter_ = 0;
     }
 private:
@@ -75,7 +76,7 @@ public:
         T val;
         while (log_.dequeue(&val)) {
             if (first) {
-                stream.printf("%s%.*u produced: ", name_, has_idx, has_idx && idx_);
+                stream.printf("%s%.*u: ", name_, has_idx, has_idx && idx_);
                 first = false;
             }
             print_value(stream, val);
@@ -96,9 +97,9 @@ private:
 template<typename T>
 bool producer_debug_cmd(Producer<T> *producer, HashedWord *input_words, const char *name, uint32_t idx = -1) {
     switch (input_words[0].hash) {
-        case static_hash("count"): delete producer->set_logger(new CountingProducerLogger<T>(name, idx)); return true;
-        case static_hash("show"): delete producer->set_logger(new PrintingProducerLogger<T>(name, idx)); return true;
-        case static_hash("off"): delete producer->set_logger(NULL); return true;
+        case static_hash("count"): producer->set_logger(new CountingProducerLogger<T>(name, idx)); return true;
+        case static_hash("show"): producer->set_logger(new PrintingProducerLogger<T>(name, idx)); return true;
+        case static_hash("off"): producer->set_logger(nullptr); return true;
     }
     return false;
 }

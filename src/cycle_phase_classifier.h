@@ -12,10 +12,12 @@ typedef DataFrameBit (&DataFrameBitPair)[num_base_stations];
 //   1) Base 1 (B), vertical sweep
 //   2) Base 2 (C), horizontal sweep
 //   3) Base 2 (C), vertical sweep
+// 
+// TODO: We might want to introduce a more thorough check for a fix, using the average_error_ value.
 class CyclePhaseClassifier {
 public:
     CyclePhaseClassifier();
-    
+
     // Process the pulse lengths for current cycle (given by incrementing cycle_idx).
     void process_pulse_lengths(uint32_t cycle_idx, const TimeDelta (&pulse_lens)[num_base_stations]);
 
@@ -46,6 +48,7 @@ private:
     float pulse_base_len_;
     DataFrameBit bits_[num_base_stations];
 
+    float average_error_;
     bool debug_print_state_;
 };
 

@@ -66,8 +66,7 @@ DataFrameBitPair CyclePhaseClassifier::get_data_bits(uint32_t cycle_idx, const T
     if (phase_id >= 0) {
         for (int b = 0; b < num_base_stations; b++) 
             if (pulse_lens[b] > TimeDelta(0, usec)) {
-                bool skip = phase_id & 0x2;
-                if (b == 1) skip = !skip;
+                bool skip = (phase_id >> 1) == b;
                 bool axis = phase_id & 0x1;
 
                 // Get the middle value of pulse width between bits 0 and 1.
@@ -81,9 +80,11 @@ DataFrameBitPair CyclePhaseClassifier::get_data_bits(uint32_t cycle_idx, const T
                 // Slowly adjust pulse_base_len_
                 float error = pulse_len - expected_pulse_len(skip, bit, axis);
                 pulse_base_len_ += error * 0.1f;
+                float abs_error = error > 0 ? error : -error;
+                average_error_ = average_error_ * 0.9f + abs_error * 0.1f;
 
                 // Output bits if error is reasonable.
-                if (-5 < error && error < 5) {
+                if (abs_error < 5.0) {
                     bits_[b].bit = bit;
                     bits_[b].cycle_idx = cycle_idx;
                 }
@@ -111,7 +112,7 @@ void CyclePhaseClassifier::reset() {
 }
 
 bool CyclePhaseClassifier::debug_cmd(HashedWord *input_words) {
-    if (*input_words++ == "phase"_hash)
+    if (*input_words++ == "phase"_hash) 
         switch (*input_words++) {
             case "show"_hash: debug_print_state_ = true; return true;
             case "off"_hash: debug_print_state_ = false; return true;
@@ -120,7 +121,7 @@ bool CyclePhaseClassifier::debug_cmd(HashedWord *input_words) {
 }
 void CyclePhaseClassifier::debug_print(Print &stream) {
     if (debug_print_state_) {
-        stream.printf("CyclePhaseClassifier: fix %d, phase %d, pulse_len %f, history 0x%x\n", 
-            fix_level_, phase_shift_, pulse_base_len_, phase_history_);
+        stream.printf("CyclePhaseClassifier: fix %d, phase %d, pulse_len %f, history 0x%x, avg error %.1f us\n", 
+            fix_level_, phase_shift_, pulse_base_len_, phase_history_, average_error_);
     }
 }

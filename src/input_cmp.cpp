@@ -13,16 +13,15 @@
 //   * Timing is calculated in ISR, leading to potential jitter.
 //
 #include "input_cmp.h"
-
-#include <Arduino.h>
 #include "settings.h"
 #include "common.h"
+#include <stdexcept>
+#include <Arduino.h>
 
 constexpr int num_comparators = 3;  // Number of Comparator modules in Teensy.
 
-// Statically allocated data structures.
-InputCmpNode input_cmps[num_comparators];  // Nodes, by comparator #.
-CircularBuffer<Pulse, InputCmpNode::pulses_buffer_len> InputNode::static_pulse_bufs_[max_num_inputs]; // pulse buffers.
+// Registered InputCmpNode-s, by comparator num. Needed for interrupt handlers.
+static InputCmpNode *input_cmps[num_comparators];  
 
 // Mapping of comparator inputs to teensy pins
 struct ComparatorInputPin {
@@ -128,12 +127,13 @@ void dynamicThresholdAdjustment() {
 */
 
 
-void InputCmpNode::reset_all() {
-    for (int i = 0; i < num_comparators; i++)
-        input_cmps[i] = {};
-}
+InputCmpNode::InputCmpNode(uint32_t input_idx, const InputDefinition &input_def)
+    : InputNode(input_idx)
+    , rise_time_()
+    , rise_valid_(false)
+    , cmp_threshold_(input_def.initial_cmp_threshold)
+    , pulse_polarity_(input_def.pulse_polarity) {
 
-InputNode *InputCmpNode::create(uint32_t input_idx, const InputDefinition &input_def, char *error_message) {
     // Find comparator and input num for given pin.
     const ComparatorInputPin *pin = 0;
     for (int i = 0; i < num_input_pin_variants; i++)
@@ -142,28 +142,24 @@ InputNode *InputCmpNode::create(uint32_t input_idx, const InputDefinition &input
             break;
         }
     
-    if (!pin) {
-        sprintf(error_message, "Pin %lu is not supported for 'cmp' input type.\n", input_def.pin);
-        return NULL;
-    }
-    InputCmpNode *pCmp = &input_cmps[pin->cmp_num];
-    if (pCmp->is_active_) {
-        sprintf(error_message, "Can't use pin %lu for a 'cmp' input type: CMP%lu is already in use by pin %lu.\n", 
-                input_def.pin, pCmp->pin_->cmp_num, pCmp->pin_->pin);
-        return NULL;
-    }
-    if (input_def.initial_cmp_threshold >= 64) {
-        sprintf(error_message, "Invalid threshold value for 'cmp' input type on pin %lu. Supported values: 0-63\n", input_def.pin);
-        return NULL;
-    } 
-    pCmp->is_active_ = true;
-    pCmp->input_idx_ = input_idx;
-    pCmp->cmp_threshold_ = input_def.initial_cmp_threshold;
-    pCmp->pulse_polarity_ = input_def.pulse_polarity;
-    pCmp->ports_ = &comparator_port_defs[pin->cmp_num];
-    pCmp->rise_valid_ = false;
-    pCmp->pin_ = pin;
-    return pCmp;
+    if (!pin)
+        throw_printf<std::runtime_error>("Pin %lu is not supported for 'cmp' input type.\n", input_def.pin);
+
+    InputCmpNode *otherInput = input_cmps[pin->cmp_num];
+    if (otherInput)
+        throw_printf<std::runtime_error>("Can't use pin %lu for a 'cmp' input type: CMP%lu is already in use by pin %lu.\n", 
+                                         input_def.pin, otherInput->pin_->cmp_num, otherInput->pin_->pin);
+    
+    if (input_def.initial_cmp_threshold >= 64)
+        throw_printf<std::runtime_error>("Invalid threshold value for 'cmp' input type on pin %lu. Supported values: 0-63\n", input_def.pin);
+
+    pin_ = pin;
+    ports_ = &comparator_port_defs[pin->cmp_num];
+    input_cmps[pin->cmp_num] = this;
+}
+
+InputCmpNode::~InputCmpNode() {
+    input_cmps[pin_->cmp_num] = nullptr;
 }
 
 void InputCmpNode::start() {
@@ -211,15 +207,8 @@ inline void __attribute__((always_inline)) InputCmpNode::_isr_handler(volatile u
     const uint32_t cmpState = *scr;
     const Timestamp timestamp = Timestamp::cur_time();
 
-    if (!is_active_)
-        return;
-
     if (rise_valid_ && (cmpState & CMP_SCR_CFF)) { // Falling edge registered
-        pulses_buf_->enqueue({
-            .input_idx = input_idx_, 
-            .start_time = rise_time_, 
-            .pulse_len = timestamp - rise_time_,
-        });
+        InputNode::enqueue_pulse(rise_time_, timestamp - rise_time_);
         rise_valid_ = false;
     }
 
@@ -233,6 +222,6 @@ inline void __attribute__((always_inline)) InputCmpNode::_isr_handler(volatile u
     *scr = CMP_SCR_IER | CMP_SCR_IEF | CMP_SCR_CFR | CMP_SCR_CFF;
 }
 
-void cmp0_isr() { input_cmps[0]._isr_handler(&CMP0_SCR); }
-void cmp1_isr() { input_cmps[1]._isr_handler(&CMP1_SCR); }
-void cmp2_isr() { input_cmps[2]._isr_handler(&CMP2_SCR); }
+void cmp0_isr() { if (input_cmps[0]) input_cmps[0]->_isr_handler(&CMP0_SCR); }
+void cmp1_isr() { if (input_cmps[1]) input_cmps[1]->_isr_handler(&CMP1_SCR); }
+void cmp2_isr() { if (input_cmps[2]) input_cmps[2]->_isr_handler(&CMP2_SCR); }

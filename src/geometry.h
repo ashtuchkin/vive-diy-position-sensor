@@ -4,9 +4,15 @@
 #include "primitives/vector.h"
 #include "common.h"
 
+class Print;
+class HashedWord;
+
 struct BaseStationGeometry {
     float mat[9];    // Normalized rotation matrix.
     float origin[3]; // Origin point
+
+    void print_def(uint32_t idx, Print &err_stream);
+    bool parse_def(HashedWord *input_words, Print &err_stream);
 };
 
 

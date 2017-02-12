@@ -2,27 +2,29 @@
 ### TODO
 
 Until public:
- * [ ] Check it's working.
-  
- * [ ] Make Mavlink & Text outputs work
-   * [ ] Mavlink - do the filtering?
-   * [ ] Conversion to NED.
- * [ ] Update geometry once per 4 phases, or be explicit about it.
- * [ ] Timing: convert to string & microseconds (mavlink).
- * [ ] Assertion system.
+ * [ ] Conversion to NED - make configurable.
+ * [ ] Check Mavlink works
+ * [ ] Implement print message functions.
+ * [ ] Blink faster on a fix.
 
- * [ ] Extract the "Pipeline" concept in a separate class.
- * [ ] input.h - make circular buffer non-static; make inputs non static in general.
+ * [ ] Add ability to disable Serial-bound Outputs to be able to debug.
+ * [ ] Add ability to shut debugging easily
+
+
+ * [ ] Timing: convert to string & microseconds (mavlink).
+ * [ ] Timing: convert throttle_ms to Timestamp method.
 
 Next:
  * [ ] Add FTM input
  * [ ] Rework docs.
  * [ ] Add outputs to settings
- * [ ] Move settings to their particular nodes
  * [ ] Make USB Serial switchable between debug io and regular mode.
+ * [ ] Assertion/termination system.
 
 Later:
+ * [ ] Remove Timestamp in favor of std::chrono::duration (http://en.cppreference.com/w/cpp/chrono/duration)
  * [ ] Create multi-sensor geometry processing unit
+ * [ ] Increase precision by keeping an estimate of cycle and removing uncertainty of long pulses.
  * [ ] Add unit testing
  * [ ] DataFrame: Check CRC32; Decode values.
  * [ ] Split PersistentSettings to Settings and Persistent<>

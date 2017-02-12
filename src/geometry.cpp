@@ -3,7 +3,7 @@
 #include "message_logging.h"
 #include <assert.h>
 
-/*
+
 // NE angle = Angle(North - X axis).
 static const float ne_angle = 110.0f / 360.0f * (float)M_PI;
 static float ned_rotation[9] = {
@@ -13,7 +13,9 @@ static float ned_rotation[9] = {
      0.0f,          -1.0f,            0.0f,
 };
 static arm_matrix_instance_f32 ned_rotation_mat = {3, 3, ned_rotation};
-*/
+void convert_to_ned(const float pt[3], float (*ned)[3]);
+
+
 PointGeometryBuilder::PointGeometryBuilder(const Vector<BaseStationGeometry, num_base_stations> &base_stations, uint32_t input_idx)
     : base_stations_(base_stations)
     , input_idx_(input_idx) {
@@ -25,6 +27,10 @@ void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
     // First 2 angles - x, y of station B; second 2 angles - x, y of station C.
     // Y - Up;  X ->   Z v
     // Station ray is inverse Z axis.
+
+    // Use only full frames (30Hz). In future, we can make this check configurable if 120Hz rate needed.
+    if (f.phase_id != 3)  
+        return;
 
     const float *angles = f.sensors[0].angles;
     //Serial.printf("Angles: %.4f %.4f %.4f %.4f\n", angles[0], angles[1], angles[2], angles[3]);
@@ -44,6 +50,14 @@ void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
     intersect_lines(base_stations_[0].origin, ray1, 
                     base_stations_[1].origin, ray2, &geo.xyz, &dist);
 
+    // Convert to NED coordinate system.
+    // TODO: Make configurable.
+    {
+        float ned[3];
+        convert_to_ned(geo.xyz, &ned);
+        std::swap(geo.xyz, ned);
+    }
+
     produce(geo);
 }
 
@@ -58,14 +72,14 @@ void PointGeometryBuilder::debug_print(Print& stream) {
     producer_debug_print(this, stream);
 }
 
-/*
+
 void convert_to_ned(const float pt[3], float (*ned)[3]) {
     // Convert to NED.
     arm_matrix_instance_f32 pt_mat = {3, 1, const_cast<float*>(pt)};
     arm_matrix_instance_f32 ned_mat = {3, 1, *ned};
     arm_mat_mult_f32(&ned_rotation_mat, &pt_mat, &ned_mat);
 }
-*/
+
 void vec_cross_product(const vec3d &a, const vec3d &b, vec3d &res) {
     res[0] = a[1]*b[2] - a[2]*b[1];
     res[1] = a[2]*b[0] - a[0]*b[2];
@@ -140,3 +154,34 @@ bool intersect_lines(const vec3d &orig1, const vec3d &vec1, const vec3d &orig2, 
 }
 
 
+// ======= BaseStationGeometry I/O ========================================
+#include "Print.h"
+#include "primitives/string_utils.h"
+
+// Format:
+// b<id> origin <x> <y> <z> matrix <9 floats>
+void BaseStationGeometry::print_def(uint32_t idx, Print &stream) {
+    stream.printf("b%d origin", idx);
+    for (int j = 0; j < 3; j++)
+        stream.printf(" %f", origin[j]);
+    stream.printf(" matrix");
+    for (int j = 0; j < 9; j++)
+        stream.printf(" %f", mat[j]);
+    stream.println();
+}
+
+bool BaseStationGeometry::parse_def(HashedWord *input_words, Print &stream) {
+    if (*input_words == "origin"_hash)
+        input_words++;
+    for (int i = 0; i < 3; i++, input_words++)
+        if (!input_words->as_float(&origin[i])) {
+            stream.printf("Invalid base station format\n"); return false;
+        }
+    if (*input_words == "matrix"_hash)
+        input_words++;
+    for (int i = 0; i < 9; i++, input_words++)
+        if (!input_words->as_float(&mat[i])) {
+            stream.printf("Invalid base station format\n"); return false;
+        }
+    return true;
+}

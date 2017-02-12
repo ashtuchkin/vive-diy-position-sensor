@@ -6,8 +6,8 @@ struct ComparatorInputPin;
 
 class InputCmpNode : public InputNode {
 public:
-    static InputNode *create(uint32_t input_idx, const InputDefinition &def, char *error_message);
-    static void reset_all();
+    InputCmpNode(uint32_t input_idx, const InputDefinition &def);
+    ~InputCmpNode();
 
     virtual void start();
     virtual bool debug_cmd(HashedWord *input_words);

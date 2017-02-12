@@ -1,19 +1,15 @@
 #pragma once
+#include <cassert>
+#include <memory>
+#include <list>
 
-// Very simple, low-overhead Producer/Consumer pattern that allows 1:N fan-out and N:1 fan-in (not N:M)
+// Very simple, low-overhead Producer/Consumer pattern.
 // To use, inherit from Consumer/Producer as needed, implement consume() then call connect() and produce()
 template<typename T>
 class Consumer {
 public:
-    Consumer() : next_(0) {}
-
     // Function that needs to be overloaded by consumer to process message of given type.
     virtual void consume(const T& val) = 0;
-
-private:
-    // We're storing pointer to next consumer right here to avoid dynamic memory allocation.
-    template<typename TT, int out_idx> friend class Producer;
-    Consumer<T> *next_;
 };
 
 
@@ -21,7 +17,7 @@ template<typename T>
 class ProduceLogger {
 public:
     virtual void log_produce(const T& val) = 0;
-    virtual ~ProduceLogger() {}
+    virtual ~ProduceLogger() = default;
 };
 
 
@@ -33,35 +29,25 @@ public:
 template<typename T, int out_idx = 0>
 class Producer {
 public:
-    Producer() : consumer_(0), logger_(0) {}
-
     // This method 'connects' (subscribes) consumer to producer.
     void connect(Consumer<T> *consumer) {
-        // TODO: assert(!consumer->next_cons_);  // This assert will make sure we don't have N:M fan-out.
-        consumer->next_ = consumer_;
-        consumer_ = consumer;
+        consumers_.push_front(consumer);
     }
 
     // Mostly used for debugging purposes, this method allows external parties to set up a logger for this producer.
-    inline ProduceLogger<T> *set_logger(ProduceLogger<T> *logger) {
-        auto *prev_logger = logger_;
-        logger_ = logger;
-        return prev_logger;
+    // Note: this class will own this logger and dispose it when not needed anymore.
+    inline void set_logger(ProduceLogger<T> *logger) {
+        logger_.reset(logger);
     }
     inline ProduceLogger<T> *logger() const {
-        return logger_;
+        return logger_.get();
     }
 
-    ~Producer() {
-        if (logger_) {
-            delete logger_;
-            logger_ = 0;
-        }
-    }
+    virtual ~Producer() {};
 protected:
     // This method should be called to send the value to all connected consumers.
     void produce(const T& val) {
-        for (Consumer<T> *cons = consumer_; cons; cons = cons->next_)
+        for (auto &cons : consumers_)
             cons->consume(val);
         if (logger_)
             logger_->log_produce(val);
@@ -69,11 +55,11 @@ protected:
 
     // This method is an optimization so that the values which don't have consumers wouldn't have to be calculated.
     bool has_consumers() {
-        return consumer_;
+        return !consumers_.empty();
     }
 
 private:
-    Consumer<T> *consumer_;
-    ProduceLogger<T> *logger_;
+    std::list<Consumer<T> *> consumers_;
+    std::unique_ptr<ProduceLogger<T>> logger_;
 };
 

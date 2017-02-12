@@ -84,8 +84,8 @@ void PulseProcessor::process_long_pulse(const Pulse &p) {
 }
 
 void PulseProcessor::process_short_pulse(const Pulse &p) {
-    if (cycle_fix_level_ >= kCycleFixAcquired) {
-        // TODO: Maybe filter out pulses outside of current cycle.
+    if (cycle_fix_level_ >= kCycleFixAcquired && p.input_idx < num_inputs_) {
+        // TODO: Filter out pulses outside of current cycle.
         cycle_short_pulses_.push(p);
     }
 }
@@ -136,9 +136,8 @@ void PulseProcessor::process_cycle_fix(Timestamp cur_time) {
     int cycle_phase = phase_classifier_.get_phase(cycle_idx_);
     if (cycle_phase >= 0) {
         // From (potentially several) short pulses for the same input, we choose the longest one.
-        Pulse *short_pulses[max_num_inputs] = {};
-        TimeDelta short_pulse_timings[max_num_inputs] = {};
-        uint32_t inputs_seen = 0;
+        Pulse *short_pulses[num_inputs_] = {};
+        TimeDelta short_pulse_timings[num_inputs_] = {};
         for (uint32_t i = 0; i < cycle_short_pulses_.size(); i++) {
             Pulse *p = &cycle_short_pulses_[i];
             uint32_t input_idx = p->input_idx;
@@ -147,19 +146,18 @@ void PulseProcessor::process_cycle_fix(Timestamp cur_time) {
                 if (!short_pulses[input_idx] || short_pulses[input_idx]->pulse_len < p->pulse_len) {
                     short_pulses[input_idx] = p;
                     short_pulse_timings[input_idx] = pulse_timing;
-                    if (input_idx+1 > inputs_seen) inputs_seen = input_idx+1;
                 }
         }
 
         // Calculate the angles for inputs where we saw short pulses.
-        for (uint32_t i = 0; i < inputs_seen; i++) 
+        for (uint32_t i = 0; i < num_inputs_; i++) 
             if (short_pulses[i]) {
                 SensorAngles &angles = angles_frame_.sensors[i];
                 angles.angles[cycle_phase] = (short_pulse_timings[i] - angle_center_len) / cycle_period * (float)M_PI;
                 angles.updated_cycles[cycle_phase] = cycle_idx_;
             }
         
-        // Send the data down the pipeline.
+        // Send the data down the pipeline every cycle. Consumers will be able to filter as needed.
         angles_frame_.time = cycle_start_time_;
         angles_frame_.cycle_idx = cycle_idx_;
         angles_frame_.phase_id = cycle_phase;

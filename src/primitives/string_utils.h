@@ -1,8 +1,14 @@
 #pragma once
 #include <stdint.h>
+#include <stdio.h>
 #include "../primitives/hash.h"
 
 class Stream;
+
+// Input string length constants.
+constexpr int max_input_str_len = 256;
+constexpr int max_words = 64;
+
 
 // Non-blocking version of Stream.readBytesUntil('\n', ...). Returns line if found, or NULL if no line.
 char *read_line(Stream &stream);
@@ -35,3 +41,12 @@ struct HashedWord {
 // Return a static, zero-terminated array of hashes for words in given string.
 // NOTE: Provided string is changed - null characters are added after words.
 HashedWord *hash_words(char *str);
+
+// Throws given exception with a printf-formatted string. Uses static buffer to avoid mem allocation
+// and std::string-related errors.
+template<typename Exc, typename... Args>
+[[noreturn]] inline void throw_printf(const char* format, Args... args) {
+    extern char throw_printf_message[128];
+    snprintf(throw_printf_message, sizeof(throw_printf_message), format, args...);
+    throw Exc(throw_printf_message);
+}

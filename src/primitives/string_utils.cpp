@@ -2,9 +2,6 @@
 #include <utility>
 #include <Arduino.h>
 
-constexpr int max_input_str_len = 256;
-constexpr int max_words = 64;
-
 // Non-blocking version of Stream.readBytesUntil('\n', ...). Returns line if found, or NULL if no line.
 char *read_line(Stream &stream) {
     static char input_string_buf[max_input_str_len];
@@ -107,3 +104,6 @@ HashedWord *hash_words(char *str) {
     hashes[i] = {0, 0, 0};
     return hashes;
 }
+
+// Buffer for throw_printf function.
+char throw_printf_message[128];

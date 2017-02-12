@@ -13,44 +13,44 @@ enum InputType {
     kMaxInputType
 };
 
+class Print;
+class HashedWord;
 
 struct InputDefinition {
     uint32_t pin;  // Teensy PIN number
     bool pulse_polarity; // true = Positive, false = Negative.
     InputType input_type;
     uint32_t initial_cmp_threshold;
+
+    void print_def(uint32_t idx, Print &err_stream);
+    bool parse_def(HashedWord *input_words, Print &err_stream);
 };
 
+
+constexpr int pulses_buffer_len = 32;
+typedef CircularBuffer<Pulse, pulses_buffer_len> PulseCircularBuffer;
 
 class InputNode 
     : public WorkerNode
     , public Producer<Pulse> {
 public:
-    // Setup the physical module, allocate pulse buffer and start getting interrupt signals.
-    // This function needs to be overridden in children class.
-    virtual void start() {
-        pulses_buf_ = &static_pulse_bufs_[input_idx_];
-    };
+    // Create input node of needed type from given configuration.
+    static InputNode *create(uint32_t input_idx, const InputDefinition &def);
 
+    virtual void do_work(Timestamp cur_time);
     virtual bool debug_cmd(HashedWord *input_words);
     virtual void debug_print(Print& stream);
 
 protected:
-    // In all types of inputs, pulses come from irq handlers. We don't want to run any other code in 
-    // irq context, so pulses go through pulses_buf_ circular buffer and produced in main "thread".
-    virtual void do_work(Timestamp cur_time) {
-        Pulse p;
-        while (pulses_buf_->dequeue(&p))
-            produce(p);
-    }
+    InputNode(uint32_t input_idx);
 
-    bool is_active_;
-    uint32_t input_idx_;
-
-    const static int pulses_buffer_len = 32;
-    CircularBuffer<Pulse, pulses_buffer_len> *pulses_buf_;
+    void enqueue_pulse(Timestamp start, TimeDelta len);
 
 private:
-    static CircularBuffer<Pulse, pulses_buffer_len> static_pulse_bufs_[max_num_inputs];
+    // Index of this input.
+    uint32_t input_idx_;
+
+    // We keep the pulse buffer to move Pulse-s from irq context to main thread context.
+    PulseCircularBuffer pulses_buf_;
 };
  

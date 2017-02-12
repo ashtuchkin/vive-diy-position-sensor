@@ -2,10 +2,11 @@
 
 #include "settings.h"
 #include "pulse_processor.h"
-#include "input_cmp.h"
+#include "input.h"
 #include "geometry.h"
 #include "outputs.h"
 #include "debug_node.h"
+#include "data_frame_decoder.h"
 
 #include <avr_emulation.h>
 #include <HardwareSerial.h>
@@ -13,27 +14,19 @@
 
 
 std::unique_ptr<Pipeline> create_vive_sensor_pipeline(const PersistentSettings &settings) {
+    // Create pipeline itself.
     auto pipeline = std::make_unique<Pipeline>();
 
     // Append Debug node to make it possible to print what's going on.
     pipeline->emplace_front(new DebugNode(pipeline.get(), Serial));
 
-    // Create center element PulseProcessor.
+    // Create central element PulseProcessor.
     auto pulse_processor = pipeline->emplace_back(new PulseProcessor(settings.inputs().size()));
 
-    // Create input nodes.
+    // Create input nodes as configured.
     for (uint32_t input_idx = 0; input_idx < settings.inputs().size(); input_idx++) {
-        char error_message[120];
-        const InputDefinition& input_def = settings.inputs()[input_idx];
-        InputNode *input_node = NULL;
-        switch (input_def.input_type) {
-            case kPort: break;  // TODO
-            case kFTM: break;  // TODO
-            // TODO: Check result and report error.
-            case kCMP: input_node = InputCmpNode::create(input_idx, input_def, error_message); break;
-            case kMaxInputType: break; // TODO: Assert
-        }
-        pipeline->emplace_front(input_node);
+        auto input_def = settings.inputs()[input_idx];
+        auto input_node = pipeline->emplace_front(InputNode::create(input_idx, input_def));
         input_node->connect(pulse_processor);
     }    
 
@@ -43,18 +36,26 @@ std::unique_ptr<Pipeline> create_vive_sensor_pipeline(const PersistentSettings &
         uint32_t input_idx = 0;
         geometry_builder = pipeline->emplace_back(new PointGeometryBuilder(settings.base_stations(), input_idx));
         pulse_processor->Producer<SensorAnglesFrame>::connect(geometry_builder);
+
+        for (uint32_t i = 0; i < 2; i++) {
+            auto dataframe_decoder = pipeline->emplace_back(new DataFrameDecoder(i));
+            pulse_processor->Producer<DataFrameBit>::connect(dataframe_decoder);
+        }        
     } else {
         // TODO: Print that there's no geometry.
     }
 
-    // Create Output Nodes
+    // Output Nodes
+    // auto sensor_angles_output = pipeline->emplace_back(new SensorAnglesTextOutput(Serial));
+    // pulse_processor->Producer<SensorAnglesFrame>::connect(sensor_angles_output);
+
     if (geometry_builder) {
         Serial1.begin(57600);
         auto mavlink_output = pipeline->emplace_back(new MavlinkGeometryOutput(Serial1));
         geometry_builder->connect(mavlink_output);
 
-        auto text_output = pipeline->emplace_back(new GeometryTextOutput(Serial, 0));
-        geometry_builder->connect(text_output);
+        // auto text_output = pipeline->emplace_back(new GeometryTextOutput(Serial, 0));
+        // geometry_builder->connect(text_output);
     }
 
     return pipeline;

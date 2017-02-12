@@ -8,7 +8,7 @@
 constexpr int max_num_inputs = 8;           // Number of concurrent sensors we support.
 constexpr int max_bytes_in_data_frame = 50;
 
-// Not tunable: True for all systems.
+// Not tunable: constant for Lighthouse system.
 constexpr int num_base_stations = 2;
 constexpr int num_cycle_phases = 4;
 
