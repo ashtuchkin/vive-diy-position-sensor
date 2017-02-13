@@ -38,10 +38,8 @@ void PulseProcessor::consume(const Pulse& p) {
         // Ignore very long pulses.
     } else if (p.pulse_len >= min_long_pulse_len) { // Long pulse - likely sync pulse
         process_long_pulse(p);
-    } else if (p.pulse_len >= min_short_pulse_len) { // Short pulse - likely laser sweep
+    } else { // Short pulse - likely laser sweep
         process_short_pulse(p);
-    } else { 
-        // Ignore very short pulses. TODO: Keep track of the number.        
     }
 }
 

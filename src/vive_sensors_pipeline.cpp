@@ -18,7 +18,7 @@ std::unique_ptr<Pipeline> create_vive_sensor_pipeline(const PersistentSettings &
     auto pipeline = std::make_unique<Pipeline>();
 
     // Append Debug node to make it possible to print what's going on.
-    pipeline->emplace_front(std::make_unique<DebugNode>(pipeline.get(), Serial));
+    auto debug_node = pipeline->emplace_front(std::make_unique<DebugNode>(pipeline.get(), Serial));
 
     // Create central element PulseProcessor.
     auto pulse_processor = pipeline->emplace_back(std::make_unique<PulseProcessor>(settings.inputs().size()));
@@ -46,7 +46,8 @@ std::unique_ptr<Pipeline> create_vive_sensor_pipeline(const PersistentSettings &
     }
 
     // Output Nodes
-    // auto sensor_angles_output = pipeline->emplace_back(std::make_unique<SensorAnglesTextOutput>(Serial));
+    // auto sensor_angles_output = pipeline->emplace_back(
+    //          std::make_unique<SensorAnglesTextOutput>(debug_node->stream()));
     // pulse_processor->Producer<SensorAnglesFrame>::connect(sensor_angles_output);
 
     if (geometry_builder) {
@@ -59,7 +60,7 @@ std::unique_ptr<Pipeline> create_vive_sensor_pipeline(const PersistentSettings &
         auto mavlink_output = pipeline->emplace_back(std::make_unique<MavlinkGeometryOutput>(Serial1));
         coord_converter->connect(mavlink_output);
 
-        auto text_output = pipeline->emplace_back(std::make_unique<GeometryTextOutput>(Serial, 0));
+        auto text_output = pipeline->emplace_back(std::make_unique<GeometryTextOutput>(debug_node->stream(), 0));
         geometry_builder->connect(text_output);
     }
 

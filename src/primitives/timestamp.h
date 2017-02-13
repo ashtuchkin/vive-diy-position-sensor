@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 enum TimeUnit {
-    usec = 96,            // This will be increased to get better time resolution.
+    usec = 4,            // This can be increased to get better time resolution.
     msec = usec * 1000,
     ms = msec,
     sec = msec * 1000,

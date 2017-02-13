@@ -14,7 +14,7 @@ inline void print_value(Print &stream, const T& val);
 
 template<>
 inline void print_value<Pulse>(Print &stream, const Pulse& val) {
-    stream.printf("inp %d, time %dus, len %d ", val.input_idx, val.start_time.get_value(usec), val.pulse_len.get_value(usec));
+    stream.printf("\ninp %d, time %dus, len %d ", val.input_idx, val.start_time.get_value(usec), val.pulse_len.get_value(usec));
 }
 
 template<>
@@ -89,10 +89,10 @@ public:
     virtual void print_logs(Print &stream) {
         bool first = true;
         uint32_t has_idx = idx_ != (uint32_t)-1;
+        stream.printf("%s%.*u: ", name_, has_idx, has_idx && idx_);
         T val;
         while (log_.dequeue(&val)) {
             if (first) {
-                stream.printf("%s%.*u: ", name_, has_idx, has_idx && idx_);
                 first = false;
             } else {
                 stream.printf("| ");
@@ -102,6 +102,8 @@ public:
         if (!first) {
             stream.printf("(%d total)\n", counter_);
             counter_ = 0;
+        } else {
+            stream.printf("accumulating..\n");
         }
     }
 private:

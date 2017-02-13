@@ -90,8 +90,7 @@ void MavlinkGeometryOutput::consume(const ObjectGeometry& g) {
 }
 
 bool MavlinkGeometryOutput::debug_cmd(HashedWord *input_words) {
-    if (*input_words == "mavlink#"_hash && input_words->idx == stream_idx_) {
-        input_words++;
+    if (*input_words++ == "mavlink"_hash) {
         switch (*input_words++) {
             case "show"_hash: debug_print_state_ = true; return true;
             case "off"_hash: debug_print_state_ = false; return true;

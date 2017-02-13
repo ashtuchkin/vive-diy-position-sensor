@@ -13,24 +13,40 @@
 DebugNode::DebugNode(Pipeline *pipeline, Stream &debug_stream) 
     : pipeline_(pipeline)
     , debug_stream_(debug_stream)
+    , detachable_print_(std::make_unique<DetachablePrint>(debug_stream))
+    , continuous_debug_print_(0)
     , print_debug_memory_(false) {
     assert(pipeline);
 }
 
 void DebugNode::do_work(Timestamp cur_time) {
     // Process debug input commands
-    while (char *input_cmd = read_line(debug_stream_)) {
+    if (char *input_cmd = read_line(debug_stream_)) {
+        bool print_debug = !detachable_print_->is_attached() && !continuous_debug_print_;
+        detachable_print_->set_attached(false);
+        continuous_debug_print_ = 0;
+
         HashedWord* hashed_words = hash_words(input_cmd);
-        if (*hashed_words && !pipeline_->debug_cmd(hashed_words)) 
-            debug_stream_.println("Unknown command.");
+        bool res = !*hashed_words || pipeline_->debug_cmd(hashed_words);
+        if (!detachable_print_->is_attached() && !continuous_debug_print_) {
+            if (!res)
+                debug_stream_.println("Unknown command.");                
+            else if (print_debug)
+                pipeline_->debug_print(debug_stream_);
+            debug_stream_.print("debug> ");
+        }
     }
 
     // Print current debug state
-    if (throttle_ms(TimeDelta(1000, ms), cur_time, &debug_print_period_))
+    if (continuous_debug_print_ && throttle_ms(TimeDelta(continuous_debug_print_, ms), cur_time, &debug_print_period_))
         pipeline_->debug_print(debug_stream_);
     
     // Update led pattern.
     update_led_pattern(cur_time);
+}
+
+Print &DebugNode::stream() {
+    return *detachable_print_.get();
 }
 
 bool DebugNode::debug_cmd(HashedWord *input_words) {
@@ -44,9 +60,16 @@ bool DebugNode::debug_cmd(HashedWord *input_words) {
         }
         break;
     
-    case "!"_hash:
-        settings.restart_in_configuration_mode();
-        return true;
+    case "!"_hash: settings.restart_in_configuration_mode(); return true;
+    case "o"_hash: detachable_print_->set_attached(true); return true;
+    case "c"_hash:
+        uint32_t val;
+        if (!*input_words) {
+            continuous_debug_print_ = 1000; debug_print_period_ = Timestamp::cur_time(); return true;
+        } else if (input_words->as_uint32(&val) && val >= 10 && val <= 100000) {
+            continuous_debug_print_ = val; debug_print_period_ = Timestamp::cur_time(); return true;
+        }
+        break;
     }
     return false;
 }

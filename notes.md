@@ -1,10 +1,6 @@
 
 ### TODO
 
-Until public:
- * [ ] Add ability to disable Serial-bound Outputs to be able to debug.
- * [ ] Add ability to shut debugging easily
-
 Next:
  * [ ] Add FTM input
  * [ ] Rework docs.
