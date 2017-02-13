@@ -2,9 +2,10 @@
 // For a problem statement see e.g. http://arduino.stackexchange.com/a/12588
 // Also, a utility function throttle_ms to run something periodically.
 #pragma once
+#include <stdint.h>
 
 enum TimeUnit {
-    usec = 1,            // This will be increased to get better time resolution.
+    usec = 96,            // This will be increased to get better time resolution.
     msec = usec * 1000,
     ms = msec,
     sec = msec * 1000,
@@ -60,7 +61,12 @@ public:
     constexpr Timestamp(): time_(0) {} // Default constructor. We need it to be able to keep Timestamp in structs.
     constexpr Timestamp(const Timestamp& other): time_(other.time_) {}
     inline Timestamp& operator=(const Timestamp& other) { time_ = other.time_; return *this; }
-    constexpr unsigned int get_value_unsafe(TimeUnit tu) const { return time_ / tu; }
+
+    // Get adjusted value of this timestamp in provided time unit. 
+    // We try to "extend" the value outside of regular period of timestamp using current time in millis.
+    // NOTE: This function is specialized for tu=1 below.
+    // TODO: Add 64bit version of get_value.
+    uint32_t get_value(TimeUnit tu) const;
 
     // Static getters.
     static Timestamp cur_time(); // Implementation will try to get the best resolution possible.
@@ -83,26 +89,27 @@ public:
     constexpr bool operator!=(const Timestamp& other) const { return int(time_ - other.time_) != 0; }
 
 private:
-    constexpr Timestamp(unsigned int time): time_(time) {}
-    unsigned int time_;  // Think about this as some global time mod 2^32.
+    constexpr Timestamp(uint32_t time): time_(time) {}
+    uint32_t time_;  // Think about this as some global time mod 2^32.
 };
 
-// Returns true only once per period_time. cur_time is the current timestamp. next_run_time is a pointer to Timestamp that
+// Returns true only once per period_time. cur_time is the current timestamp. block_prev_run is a pointer to Timestamp that
 // keeps data between calls, should not be used otherwise; slips will contain the number of skipped periods, if provided.
 // Usage:
 // void loop() {
 //     Timestamp cur_time = Timestamp::cur_time();       
-//     static Timestamp block_next_run(cur_time);
-//     if (throttle_ms(TimeDelta(1000, msec), cur_time, &block_next_run)) {
+//     static Timestamp block_prev_run(cur_time);
+//     if (throttle_ms(TimeDelta(1000, msec), cur_time, &block_prev_run)) {
 //         // This block will be executed once every 1000 ms.
 //     }   
 // }
-inline bool throttle_ms(TimeDelta period_time, Timestamp cur_time, Timestamp *next_run_time, unsigned *slips = 0) {
-    if (cur_time >= *next_run_time) {
-        *next_run_time += period_time;
-        if (slips && cur_time >= *next_run_time)
-            (*slips)++;
-        return true;
+inline bool throttle_ms(TimeDelta period_time, Timestamp cur_time, Timestamp *prev_run_time, unsigned *slips = 0) {
+    unsigned cnt = 0;
+    while (cur_time >= *prev_run_time + period_time) {
+        *prev_run_time += period_time;
+        cnt++;
     }
-    return false;
+    if (slips && cnt > 1)
+        (*slips) += (cnt-1);
+    return cnt;
 }

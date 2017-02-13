@@ -11,7 +11,7 @@ void SensorAnglesTextOutput::consume(const SensorAnglesFrame& f) {
     if (f.phase_id != 3 || debug_disable_output_)
         return;
 
-    auto time = f.time.get_value_unsafe(msec); // TODO.
+    auto time = f.time.get_value(msec);
     stream_->printf("ANG\t%d", time);
     for (uint32_t i = 0; i < f.sensors.size(); i++) {
         const SensorAngles &angles = f.sensors[i];
@@ -50,7 +50,7 @@ void GeometryTextOutput::consume(const ObjectGeometry& f) {
     if (debug_disable_output_)
         return;
 
-    auto time = f.time.get_value_unsafe(msec); // TODO.
+    auto time = f.time.get_value(msec);
     stream_->printf("GEO%d\t%u\t%.4f\t%.4f\t%.4f", object_idx_, time, f.xyz[0], f.xyz[1], f.xyz[2]);
     if (f.q[0] != 1.0f) {
         // Output quaternion if available.

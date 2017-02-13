@@ -35,7 +35,7 @@ class InputNode
     , public Producer<Pulse> {
 public:
     // Create input node of needed type from given configuration.
-    static InputNode *create(uint32_t input_idx, const InputDefinition &def);
+    static std::unique_ptr<InputNode> create(uint32_t input_idx, const InputDefinition &def);
 
     virtual void do_work(Timestamp cur_time);
     virtual bool debug_cmd(HashedWord *input_words);

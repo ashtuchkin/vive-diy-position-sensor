@@ -2,29 +2,23 @@
 ### TODO
 
 Until public:
- * [ ] Conversion to NED - make configurable.
- * [ ] Check Mavlink works
- * [ ] Implement print message functions.
- * [ ] Blink faster on a fix.
-
  * [ ] Add ability to disable Serial-bound Outputs to be able to debug.
  * [ ] Add ability to shut debugging easily
-
-
- * [ ] Timing: convert to string & microseconds (mavlink).
- * [ ] Timing: convert throttle_ms to Timestamp method.
 
 Next:
  * [ ] Add FTM input
  * [ ] Rework docs.
- * [ ] Add outputs to settings
+ * [ ] Add outputs, geo objects and coord conversions to settings
+ * [ ] Output point distance.
  * [ ] Make USB Serial switchable between debug io and regular mode.
  * [ ] Assertion/termination system.
 
 Later:
- * [ ] Remove Timestamp in favor of std::chrono::duration (http://en.cppreference.com/w/cpp/chrono/duration)
  * [ ] Create multi-sensor geometry processing unit
  * [ ] Increase precision by keeping an estimate of cycle and removing uncertainty of long pulses.
+ * [ ] Remove Timestamp in favor of std::chrono::duration (http://en.cppreference.com/w/cpp/chrono/duration)
+ * [ ] Remove Vector in favor of std::vector.
+ * [ ] Rewrite _sbrk() to not allow heap to go to into stack.
  * [ ] Add unit testing
  * [ ] DataFrame: Check CRC32; Decode values.
  * [ ] Split PersistentSettings to Settings and Persistent<>

@@ -1,6 +1,7 @@
 // Simple version of vector with dynamic length, but fixed capacity.
 // Only compatible with value or POD types, not classes (it doesn't do construction/destruction).
 #pragma once
+#include <assert.h>
 
 // Type T, Capacity C.
 template<typename T, unsigned C> 
@@ -16,7 +17,7 @@ public:
     inline const T &operator[](unsigned idx) const { return elems_[idx]; }
 
     inline void set_size(unsigned long size) {
-        // TODO: assert (size <= C)
+        assert(size <= C);
         size_ = size;
     }
 

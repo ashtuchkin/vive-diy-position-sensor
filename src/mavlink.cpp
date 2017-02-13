@@ -45,7 +45,8 @@ MavlinkGeometryOutput::MavlinkGeometryOutput(Print &stream)
             output_streams[i] = &stream;
             inserted = true;
         }
-    assert(inserted);
+    if (!inserted)
+        throw_printf("Too many MavlinkGeometryOutputs.");
 }
 
 MavlinkGeometryOutput::~MavlinkGeometryOutput() {

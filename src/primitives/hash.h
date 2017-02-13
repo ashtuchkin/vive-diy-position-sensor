@@ -93,9 +93,7 @@ public:
 
     // Set value for the given hash.
     void set(uint32_t hash, T* val) {
-        if (full()) {            
-            return;  // TODO: Assert.
-        }
+        assert(!full());            
         uint32_t pos = search(hash);
         if (!hashes_[pos]) size_++;
         hashes_[pos] = hash;

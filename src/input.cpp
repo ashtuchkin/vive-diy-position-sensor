@@ -4,12 +4,12 @@
 
 // Multiplexer method to create input node of correct type.
 // Throws exceptions on incorrect values.
-InputNode *InputNode::create(uint32_t input_idx, const InputDefinition &input_def) {
+std::unique_ptr<InputNode> InputNode::create(uint32_t input_idx, const InputDefinition &input_def) {
     switch (input_def.input_type) {
-        case kCMP: return new InputCmpNode(input_idx, input_def);
-        case kPort: throw std::runtime_error("Port input type not implemented yet");
-        case kFTM: throw std::runtime_error("FTM input type not implemented yet");
-        default: throw std::runtime_error("Unknown input type");
+        case kCMP: return std::make_unique<InputCmpNode>(input_idx, input_def);
+        case kPort: throw_printf("Port input type not implemented yet");
+        case kFTM: throw_printf("FTM input type not implemented yet");
+        default: throw_printf("Unknown input type");
     }
 }
 

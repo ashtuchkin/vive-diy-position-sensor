@@ -15,7 +15,6 @@
 #include "input_cmp.h"
 #include "settings.h"
 #include "common.h"
-#include <stdexcept>
 #include <Arduino.h>
 
 constexpr int num_comparators = 3;  // Number of Comparator modules in Teensy.
@@ -143,15 +142,15 @@ InputCmpNode::InputCmpNode(uint32_t input_idx, const InputDefinition &input_def)
         }
     
     if (!pin)
-        throw_printf<std::runtime_error>("Pin %lu is not supported for 'cmp' input type.\n", input_def.pin);
+        throw_printf("Pin %lu is not supported for 'cmp' input type.\n", input_def.pin);
 
     InputCmpNode *otherInput = input_cmps[pin->cmp_num];
     if (otherInput)
-        throw_printf<std::runtime_error>("Can't use pin %lu for a 'cmp' input type: CMP%lu is already in use by pin %lu.\n", 
+        throw_printf("Can't use pin %lu for a 'cmp' input type: CMP%lu is already in use by pin %lu.\n", 
                                          input_def.pin, otherInput->pin_->cmp_num, otherInput->pin_->pin);
     
     if (input_def.initial_cmp_threshold >= 64)
-        throw_printf<std::runtime_error>("Invalid threshold value for 'cmp' input type on pin %lu. Supported values: 0-63\n", input_def.pin);
+        throw_printf("Invalid threshold value for 'cmp' input type on pin %lu. Supported values: 0-63\n", input_def.pin);
 
     pin_ = pin;
     ports_ = &comparator_port_defs[pin->cmp_num];

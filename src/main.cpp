@@ -1,18 +1,10 @@
 #include "vive_sensors_pipeline.h"
 #include "settings.h"
-
-#include <avr_emulation.h>
-#include <usb_serial.h>
-
+#include <Arduino.h>
 
 extern "C" int main() {
-    // Initialize core devices.
-    Serial.begin(9600);
-    pinMode(LED_BUILTIN, OUTPUT);
-
     // Initialize persistent settings interactively from user input, if needed.
     if (settings.needs_configuration()) {
-        digitalWrite(LED_BUILTIN, HIGH);
         settings.initialize_from_user_input(Serial);
     }
 

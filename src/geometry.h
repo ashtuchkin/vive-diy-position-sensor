@@ -24,6 +24,7 @@ class PointGeometryBuilder
 public:
     PointGeometryBuilder(const Vector<BaseStationGeometry, num_base_stations> &base_stations, uint32_t input_idx);
     virtual void consume(const SensorAnglesFrame& f);
+    virtual void do_work(Timestamp cur_time);
 
     virtual bool debug_cmd(HashedWord *input_words);
     virtual void debug_print(Print& stream);
@@ -31,11 +32,25 @@ public:
 private:
     const Vector<BaseStationGeometry, num_base_stations> &base_stations_;
     const uint32_t input_idx_;
+    Timestamp last_success_;
 };
 
+// Helper node to convert coordinates to a different coordinate system.
+class CoordinateSystemConverter
+    : public WorkerNode
+    , public Consumer<ObjectGeometry>
+    , public Producer<ObjectGeometry> {
+public:
+    CoordinateSystemConverter(float m[9]);
 
-constexpr int vec3d_size = 3;
-typedef float vec3d[vec3d_size];
+    // Convert from standard Vive coordinate system to NED.
+    // Needs angle between North and X axis, in degrees.
+    static std::unique_ptr<CoordinateSystemConverter> NED(float angle_in_degrees);
 
-bool intersect_lines(const vec3d &orig1, const vec3d &vec1, const vec3d &orig2, const vec3d &vec2, vec3d *res, float *dist);
-void calc_ray_vec(const BaseStationGeometry &bs, float angle1, float angle2, vec3d &res);
+    virtual void consume(const ObjectGeometry& geo);
+    virtual bool debug_cmd(HashedWord *input_words);
+    virtual void debug_print(Print& stream);
+
+private:
+    float mat_[9];
+};

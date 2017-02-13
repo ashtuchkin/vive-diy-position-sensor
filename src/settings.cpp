@@ -2,8 +2,11 @@
 #include "settings.h"
 #include "primitives/string_utils.h"
 #include "vive_sensors_pipeline.h"
+#include "led_state.h"
 
-#include <Arduino.h>
+#include <avr_functions.h>
+#include <Stream.h>
+#include <kinetis.h>
 
 constexpr uint32_t current_settings_version = 0xbabe0002;
 constexpr uint32_t *eeprom_addr = 0;
@@ -87,12 +90,16 @@ void PersistentSettings::set_value(Vector<T, arr_len> &arr, uint32_t idx, Hashed
 
 void PersistentSettings::initialize_from_user_input(Stream &stream) {
     while (true) {
-        stream.print("> ");
+        stream.print("config> ");
         char *input_cmd = nullptr;
-        while (!input_cmd)
+        while (!input_cmd) {
             input_cmd = read_line(stream);
-        HashedWord *input_words = hash_words(input_cmd);
 
+            set_led_state(kConfigMode);
+            update_led_pattern(Timestamp::cur_time());
+        } 
+        
+        HashedWord *input_words = hash_words(input_cmd);
         if (!input_words->word || input_words->word[0] == '#')  // Do nothing on comments and empty lines.
             continue;
         

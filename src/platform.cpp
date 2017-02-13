@@ -122,3 +122,7 @@ namespace __cxxabiv1 {
 // 
 // Yet another way is to place stack in the beginning of RAM. That way we'll fail hard.
 // 
+
+// ====  6. Yield  =========================================
+// This needs to be replaced with empty body to avoid linking to all the Serial-s and save memory.
+void yield() {}

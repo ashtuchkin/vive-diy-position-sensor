@@ -7,23 +7,37 @@
 #include "primitives/hash.h"
 #include <Arduino.h>
 
+// This function is used to print messages used in Producer-Consumer pattern.
+// Please specialize this function for your messages below.
 template<typename T>
-inline void print_value(Print &stream, const T& val); // Please specialize this function for your data below.
+inline void print_value(Print &stream, const T& val); 
 
 template<>
 inline void print_value<Pulse>(Print &stream, const Pulse& val) {
-    stream.printf("| %d %d %d ", val.input_idx, val.start_time.get_value_unsafe(usec), val.pulse_len.get_value(usec));
+    stream.printf("inp %d, time %dus, len %d ", val.input_idx, val.start_time.get_value(usec), val.pulse_len.get_value(usec));
 }
 
 template<>
 inline void print_value<SensorAnglesFrame>(Print &stream, const SensorAnglesFrame& val) {
-    stream.printf("TODO");
+    stream.printf("\ntime %dms, cycle %u, angles ", 
+                  val.time.get_value(msec), val.cycle_idx, val.phase_id);
+    for (uint32_t i = 0; i < val.sensors.size(); i++) {
+        auto sens = val.sensors[i];
+        for (int32_t phase = 0; phase < num_cycle_phases; phase++) {
+            int32_t phase_delta = phase - val.phase_id;
+            if (phase_delta > 0) phase_delta -= num_cycle_phases;
+            if (sens.updated_cycles[phase] == val.cycle_idx + phase_delta)
+                stream.printf("%c%.4f ", (phase == val.phase_id) ? '*' : ' ', sens.angles[phase]);
+            else
+                stream.printf("---- ");
+        }
+    }
 }
 
 template<>
 inline void print_value<DataFrameBit>(Print &stream, const DataFrameBit& val) {
-
-    stream.printf("TODO");
+    stream.printf("time %dms, base_station %d, cycle %d, bit %d ", 
+                  val.time.get_value(msec), val.base_station_idx, val.cycle_idx, val.bit);
 }
 
 template<>
@@ -34,7 +48,9 @@ inline void print_value<DataFrame>(Print &stream, const DataFrame& frame) {
 
 template<>
 inline void print_value<ObjectGeometry>(Print &stream, const ObjectGeometry& val) {
-    stream.printf("TODO");
+    stream.printf("\ntime %dms, pos %.3f %.3f %.3f ", val.time.get_value(msec), val.xyz[0], val.xyz[1], val.xyz[2]);
+    if (val.q[0] != 1.0f)
+        stream.printf("q %.3f %.3f %.3f %.3f ", val.q[0], val.q[1], val.q[2], val.q[3]);
 }
 
 
@@ -78,6 +94,8 @@ public:
             if (first) {
                 stream.printf("%s%.*u: ", name_, has_idx, has_idx && idx_);
                 first = false;
+            } else {
+                stream.printf("| ");
             }
             print_value(stream, val);
         }

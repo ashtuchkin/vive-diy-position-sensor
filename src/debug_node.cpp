@@ -3,6 +3,7 @@
 #include <malloc.h>
 
 #include "settings.h"
+#include "led_state.h"
 
 #include <Stream.h>
 #include <core_pins.h>
@@ -28,10 +29,8 @@ void DebugNode::do_work(Timestamp cur_time) {
     if (throttle_ms(TimeDelta(1000, ms), cur_time, &debug_print_period_))
         pipeline_->debug_print(debug_stream_);
     
-    // Blink once a second in normal mode without a fix.
-    if (throttle_ms(TimeDelta(1000, ms), cur_time, &blinker_period_)) {
-        digitalWriteFast(LED_BUILTIN, (uint8_t)(!digitalReadFast(LED_BUILTIN)));
-    }
+    // Update led pattern.
+    update_led_pattern(cur_time);
 }
 
 bool DebugNode::debug_cmd(HashedWord *input_words) {

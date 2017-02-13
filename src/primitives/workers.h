@@ -34,10 +34,21 @@ public:
 class Pipeline : public WorkerNode {
 public:
     // Adding WorkerNodes to this pipeline. Note, after this Pipeline starts to own them and will
-    // destruct them. Suggested usage:
-    // auto node = pipeline->push_front(new SpecializedNode());
-    template<typename T> T *emplace_front(T *node) { nodes_.emplace_front(node); return node; }
-    template<typename T> T *emplace_back(T *node) { nodes_.emplace_back(node); return node; }
+    // destruct them when needed. Suggested usage:
+    // SpecializedNode *node = pipeline->emplace_front(std::make_unique<SpecializedNode>());
+    template<typename T> 
+    T *emplace_front(std::unique_ptr<T> node) { 
+        T *res = node.get();
+        nodes_.emplace_front(std::move(node));
+        return res;
+    }
+
+    template<typename T> 
+    T *emplace_back(std::unique_ptr<T> node) {
+        T *res = node.get();
+        nodes_.emplace_back(std::move(node));
+        return res;
+    }
 
     // Define WorkerNode functions to work on all nodes in order.
     virtual void do_work(Timestamp cur_time) {

@@ -16,6 +16,7 @@ set(SOURCE_FILES
         src/geometry.cpp
         src/input.cpp
         src/input_cmp.cpp
+        src/led_state.cpp
         src/mavlink.cpp
         src/outputs.cpp
         src/platform.cpp

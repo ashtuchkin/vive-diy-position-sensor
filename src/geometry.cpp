@@ -1,19 +1,15 @@
 #include "geometry.h"
 #include <arm_math.h>
 #include "message_logging.h"
+#include "led_state.h"
 #include <assert.h>
 
 
-// NE angle = Angle(North - X axis).
-static const float ne_angle = 110.0f / 360.0f * (float)M_PI;
-static float ned_rotation[9] = {
-    // Convert Y up -> Z down; then rotate XY around Z clockwise and inverse X & Y
-    -cosf(ne_angle), 0.0f,  sinf(ne_angle),
-    -sinf(ne_angle), 0.0f, -cosf(ne_angle),
-     0.0f,          -1.0f,            0.0f,
-};
-static arm_matrix_instance_f32 ned_rotation_mat = {3, 3, ned_rotation};
-void convert_to_ned(const float pt[3], float (*ned)[3]);
+constexpr int vec3d_size = 3;
+typedef float vec3d[vec3d_size];
+
+bool intersect_lines(const vec3d &orig1, const vec3d &vec1, const vec3d &orig2, const vec3d &vec2, vec3d *res, float *dist);
+void calc_ray_vec(const BaseStationGeometry &bs, float angle1, float angle2, vec3d &res);
 
 
 PointGeometryBuilder::PointGeometryBuilder(const Vector<BaseStationGeometry, num_base_stations> &base_stations, uint32_t input_idx)
@@ -27,12 +23,19 @@ void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
     // First 2 angles - x, y of station B; second 2 angles - x, y of station C.
     // Y - Up;  X ->   Z v
     // Station ray is inverse Z axis.
+    const SensorAngles &sens = f.sensors[input_idx_];
 
     // Use only full frames (30Hz). In future, we can make this check configurable if 120Hz rate needed.
     if (f.phase_id != 3)  
         return;
 
-    const float *angles = f.sensors[0].angles;
+    // Check all angles are fresh.
+    for (int i = 0; i < num_cycle_phases; i++)
+        if (sens.updated_cycles[i] < f.cycle_idx - 8) {
+            return; // Angles too stale.
+        }
+
+    const float *angles = sens.angles;
     //Serial.printf("Angles: %.4f %.4f %.4f %.4f\n", angles[0], angles[1], angles[2], angles[3]);
 
     vec3d ray1 = {};
@@ -50,15 +53,14 @@ void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
     intersect_lines(base_stations_[0].origin, ray1, 
                     base_stations_[1].origin, ray2, &geo.xyz, &dist);
 
-    // Convert to NED coordinate system.
-    // TODO: Make configurable.
-    {
-        float ned[3];
-        convert_to_ned(geo.xyz, &ned);
-        std::swap(geo.xyz, ned);
-    }
-
+    last_success_ = f.time;
     produce(geo);
+}
+
+void PointGeometryBuilder::do_work(Timestamp cur_time) {
+    // TODO: Make compatible with multiple geometry objects.
+    bool has_fix = cur_time - last_success_ < TimeDelta(80, ms);
+    set_led_state(has_fix ? kFixFound : kNoFix);
 }
 
 bool PointGeometryBuilder::debug_cmd(HashedWord *input_words) {
@@ -70,14 +72,6 @@ bool PointGeometryBuilder::debug_cmd(HashedWord *input_words) {
 }
 void PointGeometryBuilder::debug_print(Print& stream) {
     producer_debug_print(this, stream);
-}
-
-
-void convert_to_ned(const float pt[3], float (*ned)[3]) {
-    // Convert to NED.
-    arm_matrix_instance_f32 pt_mat = {3, 1, const_cast<float*>(pt)};
-    arm_matrix_instance_f32 ned_mat = {3, 1, *ned};
-    arm_mat_mult_f32(&ned_rotation_mat, &pt_mat, &ned_mat);
 }
 
 void vec_cross_product(const vec3d &a, const vec3d &b, vec3d &res) {
@@ -153,8 +147,49 @@ bool intersect_lines(const vec3d &orig1, const vec3d &vec1, const vec3d &orig2, 
     return true;
 }
 
+// ======= CoordinateSystemConverter ==========================================
+CoordinateSystemConverter::CoordinateSystemConverter(float mat[9]) {
+    memcpy(mat_, mat, sizeof(mat_));
+}
 
-// ======= BaseStationGeometry I/O ========================================
+std::unique_ptr<CoordinateSystemConverter> CoordinateSystemConverter::NED(float angle_in_degrees) {
+    float ne_angle = angle_in_degrees / 360.0f * (float)M_PI;
+    float mat[9] = {
+        // Convert Y up -> Z down; then rotate XY around Z clockwise and inverse X & Y
+        -cosf(ne_angle), 0.0f,  sinf(ne_angle),
+        -sinf(ne_angle), 0.0f, -cosf(ne_angle),
+        0.0f,          -1.0f,            0.0f,
+    };
+    return std::make_unique<CoordinateSystemConverter>(mat);
+}
+
+void CoordinateSystemConverter::consume(const ObjectGeometry& geo) {
+    ObjectGeometry res(geo);
+
+    // Convert position
+    arm_matrix_instance_f32 src_mat = {3, 1, const_cast<float*>(geo.xyz)};
+    arm_matrix_instance_f32 dest_mat = {3, 1, res.xyz};
+    arm_matrix_instance_f32 rotation_mat = {3, 3, mat_};
+    arm_mat_mult_f32(&rotation_mat, &src_mat, &dest_mat);
+
+    // TODO: Convert quaternion.
+    assert(geo.q[0] == 1.0f);
+
+    produce(res);
+}
+
+bool CoordinateSystemConverter::debug_cmd(HashedWord *input_words) {
+    if (*input_words++ == "coord"_hash) {
+        return producer_debug_cmd(this, input_words, "ObjectGeometry");
+    }
+    return false;
+}
+void CoordinateSystemConverter::debug_print(Print& stream) {
+    producer_debug_print(this, stream);
+}
+
+
+// ======= BaseStationGeometry I/O ===========================================
 #include "Print.h"
 #include "primitives/string_utils.h"
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdio.h>
+#include <exception>
 #include "../primitives/hash.h"
 
 class Stream;
@@ -42,11 +43,19 @@ struct HashedWord {
 // NOTE: Provided string is changed - null characters are added after words.
 HashedWord *hash_words(char *str);
 
-// Throws given exception with a printf-formatted string. Uses static buffer to avoid mem allocation
+class ValidationException : public std::exception {
+public:
+    ValidationException(const char* message) : message_(message) {}
+    virtual const char* what() const noexcept { return message_; }
+private:
+    const char* message_;
+};
+
+// Throws custom exception with a printf-formatted string. Uses static buffer to avoid mem allocation
 // and std::string-related errors.
-template<typename Exc, typename... Args>
+template<typename... Args>
 [[noreturn]] inline void throw_printf(const char* format, Args... args) {
     extern char throw_printf_message[128];
     snprintf(throw_printf_message, sizeof(throw_printf_message), format, args...);
-    throw Exc(throw_printf_message);
+    throw ValidationException(throw_printf_message);
 }
