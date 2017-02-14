@@ -49,11 +49,12 @@ public:
     virtual bool debug_cmd(HashedWord *input_words);
     virtual void debug_print(Print& stream);
 
-    virtual ~MavlinkGeometryOutput();
 private:
     bool position_valid(const ObjectGeometry& g);
+    void send_message(uint32_t msgid, const char *packet, uint8_t min_length, uint8_t length, uint8_t crc_extra);
 
-    uint32_t stream_idx_;
+    Print &stream_;
+    uint32_t current_tx_seq_;
     Timestamp last_message_timestamp_;
     float last_pos_[3];
     bool debug_print_state_;

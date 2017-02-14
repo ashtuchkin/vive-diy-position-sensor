@@ -134,8 +134,8 @@ void PulseProcessor::process_cycle_fix(Timestamp cur_time) {
     int cycle_phase = phase_classifier_.get_phase(cycle_idx_);
     if (cycle_phase >= 0) {
         // From (potentially several) short pulses for the same input, we choose the longest one.
-        Pulse *short_pulses[num_inputs_] = {};
-        TimeDelta short_pulse_timings[num_inputs_] = {};
+        Pulse *short_pulses[max_num_inputs] = {};
+        TimeDelta short_pulse_timings[max_num_inputs] = {};
         for (uint32_t i = 0; i < cycle_short_pulses_.size(); i++) {
             Pulse *p = &cycle_short_pulses_[i];
             uint32_t input_idx = p->input_idx;

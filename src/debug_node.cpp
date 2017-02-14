@@ -4,6 +4,7 @@
 
 #include "settings.h"
 #include "led_state.h"
+#include "platform.h"
 
 #include <Stream.h>
 #include <core_pins.h>
@@ -81,7 +82,7 @@ extern char _sbss;
 extern char _ebss;    // end of static data; bottom of heap
 extern char _estack;  // bottom of stack, top of ram: stack grows down towards heap
 
-// Top of heap from mk20dx128.c
+// Dynamic values from mk20dx128.c
 extern char *__brkval; // top of heap (dynamic ram): grows up towards stack
 
 void DebugNode::debug_print(Print &stream) {
@@ -89,10 +90,12 @@ void DebugNode::debug_print(Print &stream) {
         uint32_t static_data_size = &_ebss - (char*)((uint32_t)&_sdata & 0xFFFFF000);
         uint32_t allocated_heap = __brkval - &_ebss;
         char c, *top_stack = &c;
-        int32_t heap_to_stack_distance = top_stack - __brkval;
-        uint32_t stack_size = &_estack - top_stack;
+        int32_t unallocated = (&_estack - stack_size) - __brkval;
+        int32_t stack_max_used = get_stack_high_water_mark();
+        uint32_t stack_used = &_estack - top_stack;
+
         struct mallinfo m = mallinfo();
-        stream.printf("RAM: static %d, heap %d (used %d, free %d), unalloc %d, stack %d\n", 
-            static_data_size, allocated_heap, m.uordblks, m.fordblks, heap_to_stack_distance, stack_size);
+        stream.printf("RAM: static %d, heap %d (used %d, free %d), unalloc %d, stack %d (used %d, max %d)\n", 
+            static_data_size, allocated_heap, m.uordblks, m.fordblks, unallocated, stack_size, stack_used, stack_max_used);
     }
 }

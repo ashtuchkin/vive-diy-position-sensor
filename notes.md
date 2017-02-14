@@ -2,6 +2,7 @@
 ### TODO
 
 Next:
+ * [ ] Re-check all last-success timestamps - they don't survive the overflow.
  * [ ] Add FTM input
  * [ ] Rework docs.
  * [ ] Add outputs, geo objects and coord conversions to settings

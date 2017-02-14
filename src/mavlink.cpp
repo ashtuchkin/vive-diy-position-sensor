@@ -1,12 +1,8 @@
 #include "outputs.h"
-
-// This strange sequence of includes and definitions is due to how mavlink_helpers.h works :(
-// TODO: This currently includes code to sign packets with SHA256, bloating the binary. Get rid of it.
-#define MAVLINK_USE_CONVENIENCE_FUNCTIONS
-#define MAVLINK_COMM_NUM_BUFFERS 4
-#define MAVLINK_SEND_UART_BYTES mavlink_send_uart_bytes
-
-#include <mavlink_types.h>
+#include <assert.h>
+#include <common/mavlink.h>
+#include <Print.h>
+#include <avr_emulation.h>
 
 // Communication parameters of this system.
 mavlink_system_t mavlink_system = {
@@ -14,43 +10,14 @@ mavlink_system_t mavlink_system = {
     .compid = 1,
 };
 
-void mavlink_send_uart_bytes(mavlink_channel_t chan, const uint8_t *chars, unsigned length);
-
-#include <common/mavlink.h>
-
-// Insanity ends here. Back to normal.
-#include <assert.h>
-#include <Print.h>
-#include <avr_emulation.h>
-#include "primitives/vector.h"
-
-// Static list of streams we will output to.
-static Print *output_streams[MAVLINK_COMM_NUM_BUFFERS] = {};
-
-// Send multiple chars (uint8_t) over a comm channel
-void mavlink_send_uart_bytes(mavlink_channel_t chan, const uint8_t *chars, unsigned length) {
-    output_streams[chan]->write(chars, length);
-}
-
 MavlinkGeometryOutput::MavlinkGeometryOutput(Print &stream)
-    : stream_idx_(0)
+    : stream_(stream)
+    , current_tx_seq_(0)
     , last_message_timestamp_()
     , last_pos_{0, 0, 0}
     , debug_print_state_(false)
     , debug_late_messages_(0) {
-    bool inserted = false;
-    for (int i = 0; i < MAVLINK_COMM_NUM_BUFFERS; i++)
-        if (!output_streams[i]) {
-            stream_idx_ = i;
-            output_streams[i] = &stream;
-            inserted = true;
-        }
-    if (!inserted)
-        throw_printf("Too many MavlinkGeometryOutputs.");
-}
 
-MavlinkGeometryOutput::~MavlinkGeometryOutput() {
-    output_streams[stream_idx_] = nullptr;
 }
 
 bool MavlinkGeometryOutput::position_valid(const ObjectGeometry& g) {
@@ -81,12 +48,64 @@ void MavlinkGeometryOutput::consume(const ObjectGeometry& g) {
     if (!position_valid(g))
         return;
 
+    mavlink_att_pos_mocap_t packet;
+
     // TODO: Use our time here. Someday.
     // Zero will be converted to the time of receive.
-    uint64_t time_usec = 0;
-    mavlink_channel_t chan = static_cast<mavlink_channel_t>(stream_idx_);
+    packet.time_usec = 0;
+    packet.x = g.xyz[0];
+    packet.y = g.xyz[1];
+    packet.z = g.xyz[2];
+    mav_array_memcpy(packet.q, g.q, sizeof(float)*4);
+    send_message(MAVLINK_MSG_ID_ATT_POS_MOCAP, (const char *)&packet, 
+                 MAVLINK_MSG_ID_ATT_POS_MOCAP_MIN_LEN, 
+                 MAVLINK_MSG_ID_ATT_POS_MOCAP_LEN, 
+                 MAVLINK_MSG_ID_ATT_POS_MOCAP_CRC);
+}
 
-    mavlink_msg_att_pos_mocap_send(chan, time_usec, g.q, g.xyz[0], g.xyz[1], g.xyz[2]);
+// Derived from _mav_finalize_message_chan_send
+// We reimplement it here to avoid depending on channel machinery, SHA256 signatures and too large stack usage.
+void MavlinkGeometryOutput::send_message(uint32_t msgid, const char *packet, uint8_t min_length, uint8_t length, uint8_t crc_extra)
+{
+	uint16_t checksum;
+	uint8_t buf[MAVLINK_NUM_HEADER_BYTES];
+	uint8_t ck[2];
+    uint8_t header_len = MAVLINK_CORE_HEADER_LEN;
+	bool mavlink1 = false;
+
+    if (mavlink1) {
+        length = min_length;
+        assert(msgid <= 255); // can't send 16 bit messages
+        header_len = MAVLINK_CORE_HEADER_MAVLINK1_LEN;
+        buf[0] = MAVLINK_STX_MAVLINK1;
+        buf[1] = length;
+        buf[2] = current_tx_seq_++;
+        buf[3] = mavlink_system.sysid;
+        buf[4] = mavlink_system.compid;
+        buf[5] = msgid & 0xFF;
+    } else {
+	    uint8_t incompat_flags = 0;
+        length = _mav_trim_payload(packet, length);
+        buf[0] = MAVLINK_STX;
+        buf[1] = length;
+        buf[2] = incompat_flags;
+        buf[3] = 0; // compat_flags
+        buf[4] = current_tx_seq_++;
+        buf[5] = mavlink_system.sysid;
+        buf[6] = mavlink_system.compid;
+        buf[7] = msgid & 0xFF;
+        buf[8] = (msgid >> 8) & 0xFF;
+        buf[9] = (msgid >> 16) & 0xFF;
+    }
+	checksum = crc_calculate((const uint8_t*)&buf[1], header_len);
+	crc_accumulate_buffer(&checksum, packet, length);
+	crc_accumulate(crc_extra, &checksum);
+	ck[0] = (uint8_t)(checksum & 0xFF);
+	ck[1] = (uint8_t)(checksum >> 8);
+
+	stream_.write((const char *)buf, header_len+1);
+	stream_.write(packet, length);
+	stream_.write((const char *)ck, 2);
 }
 
 bool MavlinkGeometryOutput::debug_cmd(HashedWord *input_words) {

@@ -1,3 +1,4 @@
+#include "platform.h"
 #include <exception>
 #include <assert.h>
 #include <stdlib.h>
@@ -71,18 +72,63 @@ namespace __cxxabiv1 {
 }
 
 // TODO: We might want to re-define _exit() and __cxa_pure_virtual() as well to provide meaningful actions.
-// TODO: Define correct actions for hard failures like division by zero or invalid memory access.
+// TODO: Define correct actions for hard failures like division by zero or invalid memory access (see -fnon-call-exceptions)
 
-// ====  2. Memory ================================
-
-// Low-leve _sbrk() syscall to allocate memory is defined in teensy3/mk20dx128.c and very simple - just moves 
-// __brkval, current top of the heap.
-// malloc() uses _sbrk().
-// Teensy defines basic "operator new()", but it's too simple for our case, so we use standard one instead.
+// ====  2. Memory & Stack  ================================
+// Low-level _sbrk() syscall used to allocate memory is defined in teensy3/mk20dx128.c and very simple - just moves 
+// __brkval, current top of the heap. We're rewriting it to add stack clashing check.
+// malloc() uses _sbrk(). operator new() uses malloc().
+// Teensy defines a basic "operator new()", but it's too simple for our case, so we use standard one instead.
 
 // Nice lib to get memory stats: https://github.com/michaeljball/RamMonitor
 // Or, use standard interface mallinfo(); (uordblks = bytes in use, fordblks = bytes free.)
 
+// Stack starts at the end of ram and grows down, towards the heap.
+// It's a bit hard to know how much stack is actually used. There are some static methods like the one in 
+// http://www.dlbeer.co.nz/oss/avstack.html, some compile-time warnings help (-Wstack-usage=256), plus we can
+// use dynamic methods like filling stack with a pattern.
+// NOTE: Stack overflow is not actually checked, but we're guaranteed that heap don't grow into stack of given size.
+// A proper solution would require setting up MMU correctly, which we don't want to do now.
+
+extern char *__brkval;  // top of heap (dynamic ram): grows up towards stack
+extern char _estack;    // bottom of stack, top of ram: stack grows down towards heap
+
+extern "C" void * _sbrk(int incr)
+{
+    // Check we're not overwriting the stack at the end of ram.
+    if (__brkval + incr > &_estack - stack_size) {
+        errno = ENOMEM;
+        return (void *)-1;
+    }
+	char *prev = __brkval;
+	__brkval += incr;
+	return prev;
+}
+
+// Check the high water mark of stack by filling the memory with a pattern and then checking
+// how much memory still has it.
+struct StackFillChecker {
+    const uint32_t pattern = 0xFAAFBABA;
+    StackFillChecker() {
+        char *frame_address = (char*)__builtin_frame_address(0);
+        for (uint32_t *p = (uint32_t*)(&_estack - stack_size); p < (uint32_t*)(frame_address - 64); p++)
+            *p = pattern;
+    }
+
+    // Returns max used stack in bytes.
+    int get_high_water_mark() {
+        char *frame_address = (char*)__builtin_frame_address(0);
+        for (uint32_t *p = (uint32_t*)(&_estack - stack_size); p < (uint32_t*)frame_address; p++)
+            if (*p != pattern)
+                return &_estack - (char *)p;
+        return &_estack - frame_address;
+    }
+};
+static StackFillChecker static_stack_fill_checker;
+
+int get_stack_high_water_mark() {
+    return static_stack_fill_checker.get_high_water_mark();
+}
 
 // ====  3. Assertions  ================================
 

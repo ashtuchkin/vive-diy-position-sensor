@@ -58,7 +58,7 @@ set_property(CACHE TEENSY_USB_MODE PROPERTY STRINGS SERIAL HID SERIAL_HID MIDI R
 
 set(TARGET_FLAGS "-mcpu=cortex-m4 -mthumb -mfp16-format=ieee")
 set(OPTIMIZE_FLAGS "-O2" CACHE STRING "Optimization flags")  # Remember to reset cache and rebuild cmake when changing this.
-set(CMAKE_C_FLAGS "${OPTIMIZE_FLAGS} -Wall -ffunction-sections -fdata-sections ${TARGET_FLAGS}" CACHE STRING "C/C++ flags")
+set(CMAKE_C_FLAGS "${OPTIMIZE_FLAGS} -Wall -ffunction-sections -fdata-sections -Wstack-usage=256 ${TARGET_FLAGS}" CACHE STRING "C/C++ flags")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=gnu++14 -fno-rtti -fsingle-precision-constant -Woverloaded-virtual" CACHE STRING "C++ flags")
 
 set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "" FORCE)  # Don't do -O3 because it increases the size. Just remove asserts.
@@ -93,6 +93,10 @@ if (NOT TARGET TeensyCore AND NOT ${CMAKE_SOURCE_DIR} MATCHES "CMakeTmp")
     add_library(TeensyCore ${TEENSY_C_CORE_FILES} ${TEENSY_CXX_CORE_FILES})
     link_libraries(TeensyCore)
     include_directories(${TEENSY_ROOT})
+    add_custom_command(TARGET TeensyCore POST_BUILD
+            COMMAND ${CMAKE_OBJCOPY} --weaken-symbol=_sbrk $<TARGET_FILE:TeensyCore>
+            COMMENT Allow replacement of _sbrk() to better control memory allocation
+    )
 endif (NOT TARGET TeensyCore AND NOT ${CMAKE_SOURCE_DIR} MATCHES "CMakeTmp")
 
 
@@ -112,7 +116,8 @@ function(add_firmware_targets TARGET_NAME)
             COMMAND ${CMAKE_PRINT_SIZE} $<TARGET_FILE_NAME:${TARGET_NAME}> ${PROCESS_SIZE_CMD_OUTPUT}
             COMMAND ${CMAKE_OBJCOPY} ${EEPROM_OPTS} $<TARGET_FILE:${TARGET_NAME}> ${TARGET_NAME}.eep
             COMMAND ${CMAKE_OBJCOPY} ${HEX_OPTS} $<TARGET_FILE:${TARGET_NAME}> ${TARGET_NAME}.hex
-            VERBATIM)
+            VERBATIM
+    )
 
     add_custom_target(${TARGET_NAME}_Assembler
             COMMAND ${CMAKE_OBJDUMP} --demangle --disassemble --headers --wide $<TARGET_FILE_NAME:${TARGET_NAME}> > ${CMAKE_SOURCE_DIR}/build/source.S

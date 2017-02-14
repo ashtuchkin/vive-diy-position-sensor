@@ -29,7 +29,7 @@ inline void print_value<SensorAnglesFrame>(Print &stream, const SensorAnglesFram
             if (sens.updated_cycles[phase] == val.cycle_idx + phase_delta)
                 stream.printf("%c%.4f ", (phase == val.phase_id) ? '*' : ' ', sens.angles[phase]);
             else
-                stream.printf("---- ");
+                stream.printf(" ------ ");
         }
     }
 }
@@ -80,9 +80,12 @@ private:
 
 template<typename T>
 class PrintingProducerLogger : public PrintableProduceLogger<T> {
+    constexpr static int kValuesToKeep = 16;
 public:
     PrintingProducerLogger(const char *name, uint32_t idx): name_(name), idx_(idx), counter_(0) {}
     virtual void log_produce(const T& val) {
+        if (log_.full()) 
+            log_.pop_front();  // Ensure we have space to write, we're less interested in old values.
         log_.enqueue(val);
         counter_++;
     }
@@ -90,14 +93,14 @@ public:
         bool first = true;
         uint32_t has_idx = idx_ != (uint32_t)-1;
         stream.printf("%s%.*u: ", name_, has_idx, has_idx && idx_);
-        T val;
-        while (log_.dequeue(&val)) {
+        while (!log_.empty()) {
             if (first) {
                 first = false;
             } else {
                 stream.printf("| ");
             }
-            print_value(stream, val);
+            print_value(stream, log_.front());
+            log_.pop_front();
         }
         if (!first) {
             stream.printf("(%d total)\n", counter_);
@@ -110,7 +113,7 @@ private:
     const char *name_;
     uint32_t idx_;
     uint32_t counter_;
-    CircularBuffer<T, 16> log_;
+    CircularBuffer<T, kValuesToKeep> log_;
 };
 
 

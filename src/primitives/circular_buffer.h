@@ -1,6 +1,7 @@
 #pragma once
 
 // Circular buffer/queue of elements of type T, with capacity C.
+// NOTE: Both read and write indexes will freely overflow uint32_t and that's fine.
 template<typename T, unsigned int C>
 class CircularBuffer {
     static_assert(!(C & (C-1)), "Only power-of-two sizes of circular buffer are supported.");
@@ -24,6 +25,17 @@ public:
         return C;
     }
 
+    inline const T& front() const {
+        return elems_[read_idx_ & (C-1)];
+    }
+
+    // Increment read counter.
+    inline void pop_front() {
+        if (!empty()) {
+            read_idx_++;
+        }
+    }
+
     // Example usage:
     // T cur_elem;
     // while (c.dequeue(&cur_elem)) {
@@ -33,7 +45,7 @@ public:
         if (!empty()) {
             *result_elem = elems_[read_idx_ & (C-1)];
             asm volatile ("dmb 0xF":::"memory");
-            read_idx_++; // NOTE: Index will freely overflow uint32_t and that's fine.
+            read_idx_++; 
             return true;
         } else {
             return false;
@@ -46,7 +58,7 @@ public:
         if (!full()) {
             elems_[write_idx_ & (C-1)] = elem;
             asm volatile ("dmb 0xF":::"memory");
-            write_idx_++; // NOTE: Index will freely overflow uint32_t and that's fine.
+            write_idx_++;
             return true;
         } else {
             // TODO: We might want to increment an overflow counter here.
@@ -55,6 +67,6 @@ public:
     }
 
 private:
-    unsigned long read_idx_, write_idx_;
+    volatile unsigned long read_idx_, write_idx_;
     T elems_[C];
 };
