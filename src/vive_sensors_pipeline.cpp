@@ -24,7 +24,7 @@ std::unique_ptr<Pipeline> create_vive_sensor_pipeline(const PersistentSettings &
     auto pulse_processor = pipeline->emplace_back(std::make_unique<PulseProcessor>(settings.inputs().size()));
 
     // Create input nodes as configured.
-    Vector<InputNode *, max_num_inputs> input_nodes;
+    Vector<InputNode *, max_num_inputs> input_nodes{};
     for (uint32_t input_idx = 0; input_idx < settings.inputs().size(); input_idx++) {
         auto input_def = settings.inputs()[input_idx];
         auto input_node = pipeline->emplace_front(InputNode::create(input_idx, input_def));
@@ -33,7 +33,7 @@ std::unique_ptr<Pipeline> create_vive_sensor_pipeline(const PersistentSettings &
     }    
 
     // Create geometry builders as configured.
-    Vector<GeometryBuilder *, max_num_inputs> geometry_builders;
+    Vector<GeometryBuilder *, max_num_inputs> geometry_builders{};
     if (settings.geo_builders().size() > 0 && settings.base_stations().size() != 2)
         throw_printf("2 base stations must be defined to use geometry builders.");
     

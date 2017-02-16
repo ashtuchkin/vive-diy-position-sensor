@@ -26,7 +26,11 @@ PulseProcessor::PulseProcessor(uint32_t num_inputs)
     : num_inputs_(num_inputs)
     , cycle_fix_level_(0)
     , cycle_idx_(0)
-    , angles_frame_()
+    , cycle_long_pulses_{}
+    , cycle_short_pulses_{}
+    , unclassified_long_pulses_{}
+    , phase_classifier_{}
+    , angles_frame_{}
     , time_from_last_long_pulse_(0, usec)
     , debug_print_state_(false) {
     angles_frame_.sensors.set_size(num_inputs);

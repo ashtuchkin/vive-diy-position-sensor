@@ -1,14 +1,17 @@
 // Simple version of vector with dynamic length, but fixed capacity.
 // Only compatible with value or POD types, not classes (it doesn't do construction/destruction).
 #pragma once
+#include <type_traits>
 #include <assert.h>
 
 // Type T, Capacity C.
 template<typename T, unsigned C> 
 class Vector {
     static_assert(C > 0, "Please provide positive capacity");
+    static_assert(std::is_trivially_destructible<T>(), "Vector only works on simple types");
+    static_assert(std::is_trivially_copyable<T>(), "Vector only works on simple types");
 public:
-    Vector(): size_(0) {}
+    Vector() : size_{} {}
     inline unsigned long size() const { return size_; }
     inline unsigned long max_size() const { return C; }
     inline bool empty() const { return size_ == 0; }

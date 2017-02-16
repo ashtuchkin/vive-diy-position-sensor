@@ -9,12 +9,13 @@ enum PhaseFixLevels {
 };
 
 CyclePhaseClassifier::CyclePhaseClassifier()
-    : prev_full_cycle_idx_(0)
-    , phase_history_(0)
+    : prev_full_cycle_idx_()
+    , phase_history_()
     , fix_level_(kPhaseFixNone)
-    , phase_shift_(0)
-    , pulse_base_len_(0.0)
-    , bits_()
+    , phase_shift_()
+    , pulse_base_len_()
+    , bits_{}
+    , average_error_()
     , debug_print_state_(false) {
     reset();
 }

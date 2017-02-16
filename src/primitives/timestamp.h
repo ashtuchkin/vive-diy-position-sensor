@@ -17,6 +17,8 @@ public:
     // Constructors
     constexpr TimeDelta(): time_delta_(0) {}  // Default constructor to make it possible to include it in structs.
     constexpr TimeDelta(int val, TimeUnit tu): time_delta_(val * tu) {}  // Main way to create TimeDelta: value and TimeUnit.
+    constexpr TimeDelta(const TimeDelta& other) = default;
+    constexpr TimeDelta& operator=(const TimeDelta& other) = default;
 
     constexpr int get_value(TimeUnit tu) const { return time_delta_ / tu; }
 
@@ -59,8 +61,8 @@ class Timestamp {
 public:
     // Constructors.
     constexpr Timestamp(): time_(0) {} // Default constructor. We need it to be able to keep Timestamp in structs.
-    constexpr Timestamp(const Timestamp& other): time_(other.time_) {}
-    inline Timestamp& operator=(const Timestamp& other) { time_ = other.time_; return *this; }
+    constexpr Timestamp(const Timestamp& other) = default;
+    constexpr Timestamp& operator=(const Timestamp& other) = default;
 
     // Get adjusted value of this timestamp in provided time unit. 
     // We try to "extend" the value outside of regular period of timestamp using current time in millis.

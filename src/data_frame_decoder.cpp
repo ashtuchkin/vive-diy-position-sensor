@@ -10,7 +10,7 @@ DataFrameDecoder::DataFrameDecoder(uint32_t base_station_idx)
     , cur_bit_idx_(0)
     , data_idx_(0)
     , data_frame_len_(0)
-    , data_frame_() {
+    , data_frame_{} {
 }
 
 void DataFrameDecoder::consume(const DataFrameBit& frame_bit) {

@@ -5,8 +5,6 @@
 #include <type_traits>
 
 class PersistentSettings {
-    static_assert(std::is_pod<InputDef>(), "InputDef must be POD");
-    static_assert(std::is_pod<BaseStationGeometryDef>(), "BaseStationGeometryDef must be POD");
 public:
     // Data accessors
     inline const Vector<InputDef, max_num_inputs> &inputs() const { return inputs_; }
@@ -39,6 +37,9 @@ private:
 };
 
 static_assert(sizeof(PersistentSettings) < 1500, "PersistentSettings must fit into eeprom");
+static_assert(std::is_trivially_copyable<InputDef>(), "InputDef must be trivially copyable type");
+static_assert(std::is_trivially_copyable<BaseStationGeometryDef>(), "BaseStationGeometryDef must be trivially copyable type");
+static_assert(std::is_trivially_copyable<GeometryBuilderDef>(), "GeometryBuilderDef must be trivially copyable type");
 
 // Singleton to access current settings.
 extern PersistentSettings settings;

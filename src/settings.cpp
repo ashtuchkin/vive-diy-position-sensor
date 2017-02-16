@@ -19,7 +19,11 @@ b1 origin 1.718700 2.543170 0.725060 matrix 0.458350 -0.649590 0.606590 0.028970
 
 PersistentSettings settings;
 
-PersistentSettings::PersistentSettings() : is_configured_(false) {
+PersistentSettings::PersistentSettings() 
+    : is_configured_(false)
+    , inputs_{}
+    , base_stations_{}
+    , geo_builders_{} {
     read_from_eeprom();
 }
 
