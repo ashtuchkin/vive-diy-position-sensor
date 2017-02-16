@@ -4,7 +4,7 @@
 
 // Multiplexer method to create input node of correct type.
 // Throws exceptions on incorrect values.
-std::unique_ptr<InputNode> InputNode::create(uint32_t input_idx, const InputDefinition &input_def) {
+std::unique_ptr<InputNode> InputNode::create(uint32_t input_idx, const InputDef &input_def) {
     switch (input_def.input_type) {
         case kCMP: return std::make_unique<InputCmpNode>(input_idx, input_def);
         case kPort: throw_printf("Port input type not implemented yet");
@@ -52,38 +52,38 @@ void InputNode::debug_print(Print& stream) {
 }
 
 
-// ====  InputDefinition I/O ================================
+// ====  InputDef I/O ================================
 #include "Print.h"
 #include "primitives/string_utils.h"
 
 uint32_t input_type_hashes[kMaxInputType] = {"cmp"_hash, "ftm"_hash, "port_irq"_hash};
 const char *input_type_names[kMaxInputType] = {"cmp", "ftm", "port_irq"};
 
-void InputDefinition::print_def(uint32_t idx, Print &stream) {
+void InputDef::print_def(uint32_t idx, Print &stream) {
     stream.printf("i%d pin %d %s %s", idx, pin, pulse_polarity ? "positive" : "negative", input_type_names[input_type]);
     if (input_type == kCMP)
         stream.printf(" %d", initial_cmp_threshold);
     stream.println();
 }
-bool InputDefinition::parse_def(HashedWord *input_words, Print &stream) {
+
+bool InputDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream) {
     if (*input_words == "pin"_hash)
         input_words++; // Ignore "pin" word
     
     if (!input_words++->as_uint32(&pin) || pin >= CORE_NUM_TOTAL_PINS) {
-        stream.printf("Invalid/missing pin number\n"); return false;
+        err_stream.printf("Invalid/missing pin number\n"); return false;
     }
 
     switch (*input_words++) {
-    case 0: stream.printf("Missing polarity\n"); return false;
+    case 0: err_stream.printf("Missing polarity\n"); return false;
     case "positive"_hash: pulse_polarity = true; break;
     case "negative"_hash: pulse_polarity = false; break;
     default: 
-        stream.printf("Unknown polarity. Only 'positive' and 'negative' supported.\n"); return false;
+        err_stream.printf("Unknown polarity. Only 'positive' and 'negative' supported.\n"); return false;
     }
 
     if (!*input_words) {
-        // Use default input type: Comparator
-        input_type = kCMP;
+        input_type = kCMP;  // Default input type: Comparator
     } else {
         int i; 
         for (i = 0; i < kMaxInputType; i++)
@@ -92,7 +92,7 @@ bool InputDefinition::parse_def(HashedWord *input_words, Print &stream) {
                 break;
             }
         if (i == kMaxInputType) {
-            stream.printf("Unknown input type. Supported types: 'port_irq', 'ftm', 'cmp'.\n"); return false;
+            err_stream.printf("Unknown input type. Supported types: 'port_irq', 'ftm', 'cmp'.\n"); return false;
         }
     }
     input_words++;
@@ -102,10 +102,8 @@ bool InputDefinition::parse_def(HashedWord *input_words, Print &stream) {
         if (!*input_words) {
             initial_cmp_threshold = 20; // Default threshold level.
         } else if (!input_words->as_uint32(&initial_cmp_threshold) || initial_cmp_threshold >= 64) {
-            stream.printf("Invalid threshold level. Supported values: 0-63.\n"); return false;
+            err_stream.printf("Invalid threshold level. Supported values: 0-63.\n"); return false;
         }
-    } else {
-        stream.printf("ftm and port_irq input types are not supported yet.\n"); return false;
     }
     return true;
 } 

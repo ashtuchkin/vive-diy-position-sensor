@@ -24,33 +24,40 @@ std::unique_ptr<Pipeline> create_vive_sensor_pipeline(const PersistentSettings &
     auto pulse_processor = pipeline->emplace_back(std::make_unique<PulseProcessor>(settings.inputs().size()));
 
     // Create input nodes as configured.
+    Vector<InputNode *, max_num_inputs> input_nodes;
     for (uint32_t input_idx = 0; input_idx < settings.inputs().size(); input_idx++) {
         auto input_def = settings.inputs()[input_idx];
         auto input_node = pipeline->emplace_front(InputNode::create(input_idx, input_def));
         input_node->connect(pulse_processor);
+        input_nodes.push(input_node);
     }    
 
-    // Create Geometry calculating nodes.
-    PointGeometryBuilder *geometry_builder = NULL;
-    if (settings.base_stations().size() == 2) {
-        uint32_t input_idx = 0;
-        geometry_builder = pipeline->emplace_back(std::make_unique<PointGeometryBuilder>(settings.base_stations(), input_idx));
+    // Create geometry builders as configured.
+    Vector<GeometryBuilder *, max_num_inputs> geometry_builders;
+    if (settings.geo_builders().size() > 0 && settings.base_stations().size() != 2)
+        throw_printf("2 base stations must be defined to use geometry builders.");
+    
+    for (uint32_t geo_idx = 0; geo_idx < settings.geo_builders().size(); geo_idx++) {
+        auto geometry_builder = pipeline->emplace_back(
+            std::make_unique<PointGeometryBuilder>(geo_idx, settings.geo_builders()[geo_idx], settings.base_stations())
+        );
         pulse_processor->Producer<SensorAnglesFrame>::connect(geometry_builder);
-
-        for (uint32_t i = 0; i < 2; i++) {
-            auto dataframe_decoder = pipeline->emplace_back(std::make_unique<DataFrameDecoder>(i));
-            pulse_processor->Producer<DataFrameBit>::connect(dataframe_decoder);
-        }        
-    } else {
-        // TODO: Print that there's no geometry.
+        geometry_builders.push(geometry_builder);
     }
+
+    // Create Data Frame Decoders for all defined base stations.
+    for (uint32_t base_idx = 0; base_idx < settings.base_stations().size(); base_idx++) {
+        auto dataframe_decoder = pipeline->emplace_back(std::make_unique<DataFrameDecoder>(base_idx));
+        pulse_processor->Producer<DataFrameBit>::connect(dataframe_decoder);
+    }        
 
     // Output Nodes
     // auto sensor_angles_output = pipeline->emplace_back(
     //          std::make_unique<SensorAnglesTextOutput>(debug_node->stream()));
     // pulse_processor->Producer<SensorAnglesFrame>::connect(sensor_angles_output);
 
-    if (geometry_builder) {
+    if (geometry_builders.size() > 0) {
+        auto geometry_builder = geometry_builders[0];
         Serial1.begin(57600);
 
         // TODO: Make configurable.

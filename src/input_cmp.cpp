@@ -126,7 +126,7 @@ void dynamicThresholdAdjustment() {
 */
 
 
-InputCmpNode::InputCmpNode(uint32_t input_idx, const InputDefinition &input_def)
+InputCmpNode::InputCmpNode(uint32_t input_idx, const InputDef &input_def)
     : InputNode(input_idx)
     , rise_time_()
     , rise_valid_(false)

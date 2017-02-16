@@ -1,21 +1,32 @@
 #include "geometry.h"
 #include <arm_math.h>
-#include "message_logging.h"
-#include "led_state.h"
 #include <assert.h>
 
+#include "primitives/string_utils.h"
+#include "Print.h"
+#include "message_logging.h"
+#include "led_state.h"
 
-constexpr int vec3d_size = 3;
-typedef float vec3d[vec3d_size];
 
 bool intersect_lines(const vec3d &orig1, const vec3d &vec1, const vec3d &orig2, const vec3d &vec2, vec3d *res, float *dist);
-void calc_ray_vec(const BaseStationGeometry &bs, float angle1, float angle2, vec3d &res);
+void calc_ray_vec(const BaseStationGeometryDef &bs, float angle1, float angle2, vec3d &res);
 
 
-PointGeometryBuilder::PointGeometryBuilder(const Vector<BaseStationGeometry, num_base_stations> &base_stations, uint32_t input_idx)
-    : base_stations_(base_stations)
-    , input_idx_(input_idx) {
-    assert(base_stations.size() >= 2);
+GeometryBuilder::GeometryBuilder(uint32_t idx, const GeometryBuilderDef &geo_def,
+                                 const Vector<BaseStationGeometryDef, num_base_stations> &base_stations) 
+    : geo_builder_idx_(idx)
+    , base_stations_(base_stations)
+    , def_(geo_def) {
+    assert(idx < max_num_inputs);
+    assert(base_stations.size() == 2);
+    assert(geo_def.sensors.size() > 0);
+}
+
+
+PointGeometryBuilder::PointGeometryBuilder(uint32_t idx, const GeometryBuilderDef &geo_def,
+                                           const Vector<BaseStationGeometryDef, num_base_stations> &base_stations )
+    : GeometryBuilder(idx, geo_def, base_stations) {
+    assert(geo_def.sensors.size() == 1);
 }
 
 
@@ -23,7 +34,8 @@ void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
     // First 2 angles - x, y of station B; second 2 angles - x, y of station C.
     // Y - Up;  X ->   Z v
     // Station ray is inverse Z axis.
-    const SensorAngles &sens = f.sensors[input_idx_];
+    const SensorLocalGeometry &sens_def = def_.sensors[0];
+    const SensorAngles &sens = f.sensors[sens_def.input_idx];
 
     // Use only full frames (30Hz). In future, we can make this check configurable if 120Hz rate needed.
     if (f.phase_id != 3)  
@@ -54,6 +66,9 @@ void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
                     base_stations_[1].origin, ray2, &geo.xyz, &dist);
 
     last_success_ = f.time;
+    for (int i = 0; i < vec3d_size; i++)
+        geo.xyz[i] -= sens_def.pos[i];
+    
     produce(geo);
 }
 
@@ -64,9 +79,9 @@ void PointGeometryBuilder::do_work(Timestamp cur_time) {
 }
 
 bool PointGeometryBuilder::debug_cmd(HashedWord *input_words) {
-    if (*input_words == "geom#"_hash && input_words->idx == input_idx_) {
+    if (*input_words == "geom#"_hash && input_words->idx == geo_builder_idx_) {
         input_words++;
-        return producer_debug_cmd(this, input_words, "ObjectGeometry", input_idx_);
+        return producer_debug_cmd(this, input_words, "ObjectGeometry", geo_builder_idx_);
     }
     return false;
 }
@@ -89,7 +104,7 @@ float vec_length(vec3d &vec) {
     return res;
 }
 
-void calc_ray_vec(const BaseStationGeometry &bs, float angle1, float angle2, vec3d &res) {
+void calc_ray_vec(const BaseStationGeometryDef &bs, float angle1, float angle2, vec3d &res) {
     vec3d a = {arm_cos_f32(angle1), 0, -arm_sin_f32(angle1)};  // Normal vector to X plane
     vec3d b = {0, arm_cos_f32(angle2), arm_sin_f32(angle2)};   // Normal vector to Y plane
 
@@ -189,13 +204,10 @@ void CoordinateSystemConverter::debug_print(Print& stream) {
 }
 
 
-// ======= BaseStationGeometry I/O ===========================================
-#include "Print.h"
-#include "primitives/string_utils.h"
+// ======= BaseStationGeometryDef I/O ===========================================
+// Format: b<idx> origin <x> <y> <z> matrix <9x floats>
 
-// Format:
-// b<id> origin <x> <y> <z> matrix <9 floats>
-void BaseStationGeometry::print_def(uint32_t idx, Print &stream) {
+void BaseStationGeometryDef::print_def(uint32_t idx, Print &stream) {
     stream.printf("b%d origin", idx);
     for (int j = 0; j < 3; j++)
         stream.printf(" %f", origin[j]);
@@ -205,7 +217,7 @@ void BaseStationGeometry::print_def(uint32_t idx, Print &stream) {
     stream.println();
 }
 
-bool BaseStationGeometry::parse_def(HashedWord *input_words, Print &stream) {
+bool BaseStationGeometryDef::parse_def(uint32_t idx, HashedWord *input_words, Print &stream) {
     if (*input_words == "origin"_hash)
         input_words++;
     for (int i = 0; i < 3; i++, input_words++)
@@ -218,5 +230,49 @@ bool BaseStationGeometry::parse_def(HashedWord *input_words, Print &stream) {
         if (!input_words->as_float(&mat[i])) {
             stream.printf("Invalid base station format\n"); return false;
         }
+    return true;
+}
+
+// =======  GeometryBuilderDef I/O  ===========================================
+// Format: g<idx> [ i<idx> <x> <y> <z> ]+
+
+void GeometryBuilderDef::print_def(uint32_t idx, Print &stream) {
+    stream.printf("g%d", idx);
+    for (uint32_t i = 0; i < sensors.size(); i++) {
+        const SensorLocalGeometry &sensor = sensors[i];
+        stream.printf(" i%d %.4f %.4f %.4f", sensor.input_idx, sensor.pos[0], sensor.pos[1], sensor.pos[2]);
+    }
+    stream.println();
+}
+
+bool GeometryBuilderDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream) {
+    sensors.clear();
+    while (*input_words) {
+        SensorLocalGeometry sensor;
+        if (*input_words != "i#"_hash || !input_words->as_uint32(&sensor.input_idx) || sensor.input_idx >= max_num_inputs ) {
+            err_stream.printf("Input number (i<num>) required for geometry builder %d\n", idx); return false;
+        }
+        input_words++;
+        if (!*input_words && sensors.size() == 0) { // Allow skipping coordinates for one-sensor geometry builder.
+            sensor.pos[0] = sensor.pos[1] = sensor.pos[2] = 0.f;
+            sensors.push(sensor);
+            break;
+        }
+        for (int i = 0; i < vec3d_size; i++) {
+            if (!input_words++->as_float(&sensor.pos[i])) {
+                err_stream.printf("Invalid position coordinate in geometry builder %d\n", idx); return false;
+            }
+        }
+        if (sensors.full()) {
+            err_stream.printf("Too many inputs for geometry builder %d. Up to %d allowed.\n", idx, sensors.max_size()); return false;
+        }
+        sensors.push(sensor);
+    }
+    if (sensors.size() == 0) {
+        err_stream.printf("At least one sensor input should be defined for geometry builder %d\n", idx); return false;
+    }
+    if (sensors.size() > 1) {
+        err_stream.printf("Multi-sensor geometry builder is currently not supported.\n"); return false;
+    }
     return true;
 }

@@ -65,7 +65,7 @@ template<typename T, unsigned arr_len>
 void PersistentSettings::set_value(Vector<T, arr_len> &arr, uint32_t idx, HashedWord *input_words, Print& stream) {
     if (idx <= arr.size() && idx < arr_len) {
         T def;
-        if (def.parse_def(input_words, stream)) {
+        if (def.parse_def(idx, input_words, stream)) {
             bool push_new = idx == arr.size();
             if (push_new)
                 arr.push(def); 
@@ -107,13 +107,15 @@ void PersistentSettings::initialize_from_user_input(Stream &stream) {
         switch (*input_words++) {
         case "view"_hash:
             // Print all current settings.
-            stream.printf("# Current configuration: %d inputs, %d base stations; copy/paste to save/restore.\n", 
+            stream.printf("# Current configuration. Copy/paste to save/restore.\n", 
                         inputs_.size(), base_stations_.size());
             stream.printf("reset\n");
             for (uint32_t i = 0; i < inputs_.size(); i++)
                 inputs_[i].print_def(i, stream);
             for (uint32_t i = 0; i < base_stations_.size(); i++)
                 base_stations_[i].print_def(i, stream);
+            for (uint32_t i = 0; i < geo_builders_.size(); i++)
+                geo_builders_[i].print_def(i, stream);
             break;
         
         case "i#"_hash:
@@ -123,6 +125,9 @@ void PersistentSettings::initialize_from_user_input(Stream &stream) {
         case "b#"_hash:
             set_value(base_stations_, idx, input_words, stream);
             break;
+
+        case "g#"_hash:
+            set_value(geo_builders_, idx, input_words, stream);
         
         case "reset"_hash:
             inputs_.clear();

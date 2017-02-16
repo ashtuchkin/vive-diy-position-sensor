@@ -4,25 +4,54 @@
 #include "primitives/vector.h"
 #include "common.h"
 
+constexpr int vec3d_size = 3;
+typedef float vec3d[vec3d_size];
+
 class Print;
 class HashedWord;
 
-struct BaseStationGeometry {
+// Stored definition of Base Stations
+struct BaseStationGeometryDef {
     float mat[9];    // Normalized rotation matrix.
-    float origin[3]; // Origin point
+    vec3d origin; // Origin point
 
-    void print_def(uint32_t idx, Print &err_stream);
-    bool parse_def(HashedWord *input_words, Print &err_stream);
+    void print_def(uint32_t idx, Print &stream);
+    bool parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream);
 };
 
+struct SensorLocalGeometry {
+    uint32_t input_idx;
+    vec3d pos;  // Position of the sensor relative to the object.
+};
 
-// Simple class for single-point sensors.
-class PointGeometryBuilder
+// Stored definition of GeometryBuilder
+struct GeometryBuilderDef {
+    Vector<SensorLocalGeometry, 4> sensors;
+
+    void print_def(uint32_t idx, Print &stream);
+    bool parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream);
+};
+
+// Parent, abstract class for GeometryBuilders.
+class GeometryBuilder
     : public WorkerNode
     , public Consumer<SensorAnglesFrame>
     , public Producer<ObjectGeometry>  {
 public:
-    PointGeometryBuilder(const Vector<BaseStationGeometry, num_base_stations> &base_stations, uint32_t input_idx);
+    GeometryBuilder(uint32_t idx, const GeometryBuilderDef &geo_def,
+                    const Vector<BaseStationGeometryDef, num_base_stations> &base_stations);
+    
+protected:
+    uint32_t geo_builder_idx_;
+    const Vector<BaseStationGeometryDef, num_base_stations> &base_stations_;
+    GeometryBuilderDef def_;
+};
+
+// Simple class for single-point sensors.
+class PointGeometryBuilder : public GeometryBuilder {
+public:
+    PointGeometryBuilder(uint32_t idx, const GeometryBuilderDef &geo_def,
+                         const Vector<BaseStationGeometryDef, num_base_stations> &base_stations);
     virtual void consume(const SensorAnglesFrame& f);
     virtual void do_work(Timestamp cur_time);
 
@@ -30,8 +59,6 @@ public:
     virtual void debug_print(Print& stream);
 
 private:
-    const Vector<BaseStationGeometry, num_base_stations> &base_stations_;
-    const uint32_t input_idx_;
     Timestamp last_success_;
 };
 

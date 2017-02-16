@@ -6,7 +6,7 @@ struct ComparatorInputPin;
 
 class InputCmpNode : public InputNode {
 public:
-    InputCmpNode(uint32_t input_idx, const InputDefinition &def);
+    InputCmpNode(uint32_t input_idx, const InputDef &def);
     ~InputCmpNode();
 
     virtual void start();

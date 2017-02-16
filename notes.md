@@ -2,11 +2,11 @@
 ### TODO
 
 Next:
+ * [ ] Output point distance & fix level
+ * [ ] Add outputs, geo objects and coord conversions to settings
  * [ ] Re-check all last-success timestamps - they don't survive the overflow.
  * [ ] Add FTM input
  * [ ] Rework docs.
- * [ ] Add outputs, geo objects and coord conversions to settings
- * [ ] Output point distance.
  * [ ] Make USB Serial switchable between debug io and regular mode.
  * [ ] Assertion/termination system.
 

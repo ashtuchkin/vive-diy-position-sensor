@@ -16,14 +16,14 @@ enum InputType {
 class Print;
 class HashedWord;
 
-struct InputDefinition {
+struct InputDef {
     uint32_t pin;  // Teensy PIN number
     bool pulse_polarity; // true = Positive, false = Negative.
     InputType input_type;
     uint32_t initial_cmp_threshold;
 
-    void print_def(uint32_t idx, Print &err_stream);
-    bool parse_def(HashedWord *input_words, Print &err_stream);
+    void print_def(uint32_t idx, Print &stream);
+    bool parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream);
 };
 
 
@@ -35,7 +35,7 @@ class InputNode
     , public Producer<Pulse> {
 public:
     // Create input node of needed type from given configuration.
-    static std::unique_ptr<InputNode> create(uint32_t input_idx, const InputDefinition &def);
+    static std::unique_ptr<InputNode> create(uint32_t input_idx, const InputDef &def);
 
     virtual void do_work(Timestamp cur_time);
     virtual bool debug_cmd(HashedWord *input_words);

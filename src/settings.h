@@ -2,13 +2,16 @@
 #include "common.h"
 #include "input.h"
 #include "geometry.h"
-class Stream;
+#include <type_traits>
 
 class PersistentSettings {
+    static_assert(std::is_pod<InputDef>(), "InputDef must be POD");
+    static_assert(std::is_pod<BaseStationGeometryDef>(), "BaseStationGeometryDef must be POD");
 public:
     // Data accessors
-    inline const Vector<InputDefinition, max_num_inputs> &inputs() const { return inputs_; }
-    inline const Vector<BaseStationGeometry, num_base_stations> &base_stations() const { return base_stations_; }
+    inline const Vector<InputDef, max_num_inputs> &inputs() const { return inputs_; }
+    inline const Vector<BaseStationGeometryDef, num_base_stations> &base_stations() const { return base_stations_; }
+    inline const Vector<GeometryBuilderDef, max_num_inputs> &geo_builders() const { return geo_builders_; }
     // TODO: Output type
 
 
@@ -30,9 +33,12 @@ private:
     // NOTE: This is the same layout as used for EEPROM.
     // NOTE: Increase current_settings_version with each change.
     bool is_configured_;
-    Vector<InputDefinition, max_num_inputs> inputs_;
-    Vector<BaseStationGeometry, num_base_stations> base_stations_;
+    Vector<InputDef, max_num_inputs> inputs_;
+    Vector<BaseStationGeometryDef, num_base_stations> base_stations_;
+    Vector<GeometryBuilderDef, max_num_inputs> geo_builders_;
 };
+
+static_assert(sizeof(PersistentSettings) < 1500, "PersistentSettings must fit into eeprom");
 
 // Singleton to access current settings.
 extern PersistentSettings settings;
