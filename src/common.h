@@ -24,8 +24,9 @@ enum class FixLevel {
     kNoSignals      =    0,  // No signals visible at all.
     kCycleSyncing   =  100,  // Base station sync pulses are visible and we're syncing to them.
     kCycleSynced    =  200,  // We're synced to the base station sync pulses.
-    kPartialVis     =  500,  // Some sensors/base stations are covered. Not enough info to get position.
-    kFullFix        = 1000,  // Base station visibility is enough to extract full position.
+    kPartialVis     =  500,  // Some sensors/base stations don't have visibility and angles are stale. Position is invalid.
+    kStaleFix       =  800,  // Position fix is valid, but uses angles from previous 1-2 cycles.
+    kFullFix        = 1000,  // Position fix is valid and fresh.
 };
 
 struct SensorAngles {
@@ -35,6 +36,7 @@ struct SensorAngles {
 
 struct SensorAnglesFrame {
     Timestamp time;
+    FixLevel fix_level;
     uint32_t cycle_idx;
     int32_t phase_id;
     Vector<SensorAngles, max_num_inputs> sensors;

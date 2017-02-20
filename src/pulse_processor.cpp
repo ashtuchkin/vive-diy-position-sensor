@@ -86,7 +86,7 @@ void PulseProcessor::process_long_pulse(const Pulse &p) {
 }
 
 void PulseProcessor::process_short_pulse(const Pulse &p) {
-    if (cycle_fix_level_ >= kCycleFixAcquired && p.input_idx < num_inputs_) {
+    if (cycle_fix_level_ >= kCycleFixCandidate && p.input_idx < num_inputs_) {
         // TODO: Filter out pulses outside of current cycle.
         cycle_short_pulses_.push(p);
     }
@@ -158,18 +158,18 @@ void PulseProcessor::process_cycle_fix(Timestamp cur_time) {
                 angles.angles[cycle_phase] = (short_pulse_timings[i] - angle_center_len) / cycle_period * (float)M_PI;
                 angles.updated_cycles[cycle_phase] = cycle_idx_;
             }
-        
-        // Send the data down the pipeline every cycle. Consumers will be able to filter as needed.
+    }
+
+    // Send the data down the pipeline every 4th cycle (30Hz). Can be increased to 120Hz if needed.
+    if ((cycle_phase >= 0) ? (cycle_phase == 3) : (cycle_idx_ % 4 == 0)) {
         angles_frame_.time = cycle_start_time_;
+        angles_frame_.fix_level = (cycle_phase >= 0 && cycle_fix_level_ >= kCycleFixAcquired)
+                                        ? FixLevel::kCycleSynced : FixLevel::kCycleSyncing;
         angles_frame_.cycle_idx = cycle_idx_;
         angles_frame_.phase_id = cycle_phase;
         Producer<SensorAnglesFrame>::produce(angles_frame_);
-    
-    } else {
-        angles_frame_.phase_id = cycle_phase;
-        // We don't know the phase for now. Skip.
     }
-
+    
     // Prepare for the next cycle.
     reset_cycle_pulses();
     cycle_start_time_ += cycle_period;
@@ -187,6 +187,15 @@ void PulseProcessor::do_work(Timestamp cur_time) {
     if (cycle_fix_level_ >= kCycleFixCandidate) {
         if (cur_time - cycle_start_time_ > cycle_processing_point) {
             process_cycle_fix(cur_time);
+        }
+    } else {  // No fix.
+        if (throttle_ms(TimeDelta(1000, ms), cur_time, &cycle_start_time_)) {
+            // Send frame showing we have no signals.
+            angles_frame_.time = cur_time;
+            angles_frame_.fix_level = FixLevel::kNoSignals;
+            angles_frame_.cycle_idx = 0;
+            angles_frame_.phase_id = 0;
+            Producer<SensorAnglesFrame>::produce(angles_frame_);
         }
     }
 }

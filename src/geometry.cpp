@@ -14,7 +14,7 @@ void calc_ray_vec(const BaseStationGeometryDef &bs, float angle1, float angle2, 
 
 GeometryBuilder::GeometryBuilder(uint32_t idx, const GeometryBuilderDef &geo_def,
                                  const Vector<BaseStationGeometryDef, num_base_stations> &base_stations) 
-    : geo_builder_idx_(idx)
+    : object_idx_(idx)
     , base_stations_(base_stations)
     , def_(geo_def) {
     assert(idx < max_num_inputs);
@@ -26,69 +26,61 @@ GeometryBuilder::GeometryBuilder(uint32_t idx, const GeometryBuilderDef &geo_def
 
 PointGeometryBuilder::PointGeometryBuilder(uint32_t idx, const GeometryBuilderDef &geo_def,
                                            const Vector<BaseStationGeometryDef, num_base_stations> &base_stations )
-    : GeometryBuilder(idx, geo_def, base_stations) {
+    : GeometryBuilder(idx, geo_def, base_stations)
+    , pos_{Timestamp(), idx, FixLevel::kNoSignals, {0.f, 0.f, 0.f}, 0.f, {1.f, 0.f, 0.f, 0.f}} {
     assert(geo_def.sensors.size() == 1);
 }
 
 
 void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
     // First 2 angles - x, y of station B; second 2 angles - x, y of station C.
-    // Y - Up;  X ->   Z v
-    // Station ray is inverse Z axis.
+    // Coordinate system: Y - Up;  X ->  Z v  (to the viewer)
+    // Station 'looks' to inverse Z axis (vector 0;0;-1).
+    pos_.time = f.time;
+    pos_.fix_level = f.fix_level;
 
-    // Use only full frames (30Hz). In future, we can make this check configurable if 120Hz rate needed.
-    if (f.phase_id != 3)  
-        return;
+    if (f.fix_level >= FixLevel::kCycleSynced) {
+        const SensorLocalGeometry &sens_def = def_.sensors[0];
+        const SensorAngles &sens = f.sensors[sens_def.input_idx];
 
-    const SensorLocalGeometry &sens_def = def_.sensors[0];
-    const SensorAngles &sens = f.sensors[sens_def.input_idx];
+        // Check angles are fresh enough.
+        uint32_t max_stale = 0;
+        for (int i = 0; i < num_cycle_phases; i++)
+            max_stale = max(max_stale, f.cycle_idx - sens.updated_cycles[i]);
 
-    // Check all angles are fresh.
-    for (int i = 0; i < num_cycle_phases; i++)
-        if (sens.updated_cycles[i] < f.cycle_idx - 8) {
-            return; // Angles too stale.
+        if (max_stale < num_cycle_phases * 3) {  // We tolerate stale angles up to 2 cycles old.
+            pos_.fix_level = (max_stale < num_cycle_phases) 
+                                ? FixLevel::kFullFix : FixLevel::kStaleFix;
+
+            vec3d ray1{}, ray2{};
+            calc_ray_vec(base_stations_[0], sens.angles[0], sens.angles[1], ray1);
+            calc_ray_vec(base_stations_[1], sens.angles[2], sens.angles[3], ray2);
+
+            intersect_lines(base_stations_[0].origin, ray1, 
+                            base_stations_[1].origin, ray2, &pos_.pos, &pos_.pos_delta);
+
+            // Translate object position depending on the position of sensor relative to object.
+            for (int i = 0; i < vec3d_size; i++)
+                pos_.pos[i] -= sens_def.pos[i];
+            
+        } else {
+            // Angles too stale - cannot calculate position anymore.
+            pos_.fix_level = FixLevel::kPartialVis;
         }
+    }
 
-    const float *angles = sens.angles;
-    //Serial.printf("Angles: %.4f %.4f %.4f %.4f\n", angles[0], angles[1], angles[2], angles[3]);
-
-    vec3d ray1 = {};
-    calc_ray_vec(base_stations_[0], angles[0], angles[1], ray1);
-    //Serial.printf("Ray1: %f %f %f\n", ray1[0], ray1[1], ray1[2]);
-
-    vec3d ray2 = {};
-    calc_ray_vec(base_stations_[1], angles[2], angles[3], ray2);
-    //Serial.printf("Ray2: %f %f %f\n", ray2[0], ray2[1], ray2[2]);
-
-    ObjectPosition geo = {
-        .time = f.time,
-        .object_idx = geo_builder_idx_,
-        .fix_level = FixLevel::kFullFix,
-        .pos = {0.f, 0.f, 0.f},
-        .pos_delta = 0.0,
-        .q = {1.f, 0.f, 0.f, 0.f}
-    };
-
-    intersect_lines(base_stations_[0].origin, ray1, 
-                    base_stations_[1].origin, ray2, &geo.pos, &geo.pos_delta);
-
-    last_success_ = f.time;
-    for (int i = 0; i < vec3d_size; i++)
-        geo.pos[i] -= sens_def.pos[i];
-    
-    produce(geo);
+    produce(pos_);
 }
 
 void PointGeometryBuilder::do_work(Timestamp cur_time) {
     // TODO: Make compatible with multiple geometry objects.
-    bool has_fix = cur_time - last_success_ < TimeDelta(80, ms);
-    set_led_state(has_fix ? LedState::kFixFound : LedState::kNoFix);
+    set_led_state(pos_.fix_level >= FixLevel::kStaleFix ? LedState::kFixFound : LedState::kNoFix);
 }
 
 bool PointGeometryBuilder::debug_cmd(HashedWord *input_words) {
-    if (*input_words == "geom#"_hash && input_words->idx == geo_builder_idx_) {
+    if (*input_words == "geom#"_hash && input_words->idx == object_idx_) {
         input_words++;
-        return producer_debug_cmd(this, input_words, "ObjectPosition", geo_builder_idx_);
+        return producer_debug_cmd(this, input_words, "ObjectPosition", object_idx_);
     }
     return false;
 }

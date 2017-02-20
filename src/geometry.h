@@ -42,7 +42,7 @@ public:
                     const Vector<BaseStationGeometryDef, num_base_stations> &base_stations);
     
 protected:
-    uint32_t geo_builder_idx_;
+    uint32_t object_idx_;
     const Vector<BaseStationGeometryDef, num_base_stations> &base_stations_;
     GeometryBuilderDef def_;
 };
@@ -59,7 +59,7 @@ public:
     virtual void debug_print(Print& stream);
 
 private:
-    Timestamp last_success_;  // LongTimestamp
+    ObjectPosition pos_;
 };
 
 

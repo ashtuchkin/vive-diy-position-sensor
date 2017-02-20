@@ -20,6 +20,9 @@ GeometryMavlinkFormatter::GeometryMavlinkFormatter(uint32_t idx, const Formatter
 }
 
 bool GeometryMavlinkFormatter::position_valid(const ObjectPosition& g) {
+    if (g.fix_level < FixLevel::kStaleFix)
+        return false;
+    
     // Filter out outliers.
     constexpr float max_position_jump = 0.05; // meters
     bool is_valid = false;

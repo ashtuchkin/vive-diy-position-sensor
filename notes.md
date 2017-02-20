@@ -1,7 +1,6 @@
 
 ### TODO
 
- * [ ] Output point distance & fix level
  * [ ] Re-check all last-success timestamps (LongTimestamp) - they don't survive the overflow.
  * [ ] Add FTM input
  * [ ] Rework docs.

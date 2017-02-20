@@ -23,24 +23,20 @@ void FormatterNode::debug_print(Print& stream) {
 
 // ======  SensorAnglesTextFormatter  =========================================
 void SensorAnglesTextFormatter::consume(const SensorAnglesFrame& f) {
-    // Only print on the last phase.
-    if (f.phase_id != 3)
-        return;
+    uint32_t time = f.time.get_value(msec);
 
-    auto time = f.time.get_value(msec);
-
-    DataChunkPrint printer(this, f.time, node_idx_);
-    printer.printf("ANG\t%d", time);
+    // Print each sensor on its own line.
     for (uint32_t i = 0; i < f.sensors.size(); i++) {
+        DataChunkPrint printer(this, f.time, node_idx_);
         const SensorAngles &angles = f.sensors[i];
+        printer.printf("ANG%d\t%u\t%d", i, time, f.fix_level);
         for (uint32_t j = 0; j < num_cycle_phases; j++) {
-            if (angles.updated_cycles[j] == f.cycle_idx - f.phase_id + j)
-                printer.printf("\t%.4f", angles.angles[j]);
-            else
-                printer.printf("\t");
+            printer.printf("\t");
+            if (f.fix_level == FixLevel::kCycleSynced && angles.updated_cycles[j] == f.cycle_idx - f.phase_id + j)
+                printer.printf("%.4f", angles.angles[j]);
         }
+        printer.printf("\n");
     }
-    printer.printf("\n");
 }
 
 // ======  GeometryFormatter  =================================================
@@ -54,12 +50,13 @@ std::unique_ptr<GeometryFormatter> GeometryFormatter::create(uint32_t idx, const
 
 // ======  GeometryTextFormatter  =============================================
 void GeometryTextFormatter::consume(const ObjectPosition& f) {
-    auto time = f.time.get_value(msec);
     DataChunkPrint printer(this, f.time, node_idx_);
-    printer.printf("OBJ%d\t%u\t%.4f\t%.4f\t%.4f", def_.input_idx, time, f.pos[0], f.pos[1], f.pos[2]);
-    if (f.q[0] != 1.0f) {
-        // Output quaternion if available.
-        printer.printf("\t%.4f\t%.4f\t%.4f\t%.4f", f.q[0], f.q[1], f.q[2], f.q[3]);
+    printer.printf("OBJ%d\t%u\t%d", f.object_idx, f.time.get_value(msec), f.fix_level);
+    if (f.fix_level >= FixLevel::kStaleFix) {
+        printer.printf("\t%.4f\t%.4f\t%.4f\t%.4f", f.pos[0], f.pos[1], f.pos[2], f.pos_delta);
+        if (f.q[0] != 1.0f) {  // Output quaternion if available.
+            printer.printf("\t%.4f\t%.4f\t%.4f\t%.4f", f.q[0], f.q[1], f.q[2], f.q[3]);
+        }
     }
     printer.printf("\n");
 }

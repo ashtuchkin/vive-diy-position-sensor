@@ -19,8 +19,8 @@ inline void print_value<Pulse>(Print &stream, const Pulse& val) {
 
 template<>
 inline void print_value<SensorAnglesFrame>(Print &stream, const SensorAnglesFrame& val) {
-    stream.printf("\n%dms: cycle %u, angles ", 
-                  val.time.get_value(msec), val.cycle_idx, val.phase_id);
+    stream.printf("\n%dms: cycle %u, fix %02d, angles ", 
+                  val.time.get_value(msec), val.cycle_idx, (int)val.fix_level / 100);
     for (uint32_t i = 0; i < val.sensors.size(); i++) {
         auto sens = val.sensors[i];
         for (int32_t phase = 0; phase < num_cycle_phases; phase++) {
@@ -49,9 +49,10 @@ inline void print_value<DataFrame>(Print &stream, const DataFrame& frame) {
 
 template<>
 inline void print_value<ObjectPosition>(Print &stream, const ObjectPosition& val) {
-    stream.printf("\n%dms: pos %.3f %.3f %.3f ", val.time.get_value(msec), val.pos[0], val.pos[1], val.pos[2]);
+    stream.printf("\n%dms: fix %2d, pos %.4f %.4f %.4f, dist %.4f ", val.time.get_value(msec), 
+                                            (int)val.fix_level/100, val.pos[0], val.pos[1], val.pos[2], val.pos_delta);
     if (val.q[0] != 1.0f)
-        stream.printf("q %.3f %.3f %.3f %.3f ", val.q[0], val.q[1], val.q[2], val.q[3]);
+        stream.printf(" Q %.4f %.4f %.4f %.4f ", val.q[0], val.q[1], val.q[2], val.q[3]);
 }
 
 template<>
