@@ -1,5 +1,5 @@
 //
-// Definition of 'Comparator' type input (kCMP).
+// Definition of 'Comparator' type input (InputType::kCMP).
 //
 // Teensy 3.2 has 3 comparator modules: CMP0, CMP1, and CMP2. Each of them can issue an interrupt when
 // input pin voltage is crossing a threshold, both up and down. The threshold, called `cmp_threshold` in code, can be adjusted 

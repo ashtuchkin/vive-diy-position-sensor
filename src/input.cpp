@@ -6,9 +6,9 @@
 // Throws exceptions on incorrect values.
 std::unique_ptr<InputNode> InputNode::create(uint32_t input_idx, const InputDef &input_def) {
     switch (input_def.input_type) {
-        case kCMP: return std::make_unique<InputCmpNode>(input_idx, input_def);
-        case kPort: throw_printf("Port input type not implemented yet");
-        case kFTM: throw_printf("FTM input type not implemented yet");
+        case InputType::kCMP: return std::make_unique<InputCmpNode>(input_idx, input_def);
+        case InputType::kPort: throw_printf("Port input type not implemented yet");
+        case InputType::kFTM: throw_printf("FTM input type not implemented yet");
         default: throw_printf("Unknown input type");
     }
 }
@@ -55,12 +55,12 @@ void InputNode::debug_print(Print& stream) {
 #include "Print.h"
 #include "primitives/string_utils.h"
 
-uint32_t input_type_hashes[kMaxInputType] = {"cmp"_hash, "ftm"_hash, "port_irq"_hash};
-const char *input_type_names[kMaxInputType] = {"cmp", "ftm", "port_irq"};
+uint32_t input_type_hashes[kInputTypeCount] = {"cmp"_hash, "ftm"_hash, "port_irq"_hash};
+const char *input_type_names[kInputTypeCount] = {"cmp", "ftm", "port_irq"};
 
 void InputDef::print_def(uint32_t idx, Print &stream) {
-    stream.printf("sensor%d pin %d %s %s", idx, pin, pulse_polarity ? "positive" : "negative", input_type_names[input_type]);
-    if (input_type == kCMP)
+    stream.printf("sensor%d pin %d %s %s", idx, pin, pulse_polarity ? "positive" : "negative", input_type_names[(int)input_type]);
+    if (input_type == InputType::kCMP)
         stream.printf(" %d", initial_cmp_threshold);
     stream.println();
 }
@@ -82,21 +82,21 @@ bool InputDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_strea
     }
 
     if (!*input_words) {
-        input_type = kCMP;  // Default input type: Comparator
+        input_type = InputType::kCMP;  // Default input type: Comparator
     } else {
         int i; 
-        for (i = 0; i < kMaxInputType; i++)
+        for (i = 0; i < kInputTypeCount; i++)
             if (*input_words == input_type_hashes[i]) {
                 input_type = (InputType)i;
                 break;
             }
-        if (i == kMaxInputType) {
+        if (i == kInputTypeCount) {
             err_stream.printf("Unknown input type. Supported types: 'port_irq', 'ftm', 'cmp'.\n"); return false;
         }
     }
     input_words++;
 
-    if (input_type == kCMP) {
+    if (input_type == InputType::kCMP) {
         // For comparators, also read initial threshold level.
         if (!*input_words) {
             initial_cmp_threshold = 20; // Default threshold level.

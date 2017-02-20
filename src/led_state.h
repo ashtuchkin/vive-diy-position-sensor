@@ -4,7 +4,7 @@
 // To update led state, call set_led_state().
 // In normal operation, call update_led_state() frequently.
 
-enum LedState {
+enum class LedState {
     kNotInitialized,
     kConfigMode,
     kNoFix,

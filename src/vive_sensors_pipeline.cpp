@@ -58,17 +58,17 @@ std::unique_ptr<Pipeline> create_vive_sensor_pipeline(const PersistentSettings &
         auto &def = settings.formatters()[i];
         FormatterNode *formatter;
         switch (def.formatter_type) {
-            case kFormatAngles: {
+            case FormatterType::kAngles: {
                 auto node = pipeline->add_back(std::make_unique<SensorAnglesTextFormatter>(i, def));
                 pulse_processor->Producer<SensorAnglesFrame>::pipe(node);
                 formatter = node;
                 break;
             }
-            // TODO: case kFormatDataFrame:
-            case kFormatGeometry: {
+            // TODO: case FormatterType::kDataFrame:
+            case FormatterType::kPosition: {
                 if (def.input_idx >= geometry_builders.size())
                     throw_printf("Geometry builder g%d not found.", def.input_idx);
-                Producer<ObjectGeometry> *geometry_source = geometry_builders[def.input_idx];
+                Producer<ObjectPosition> *geometry_source = geometry_builders[def.input_idx];
 
                 // Convert coordinate system if needed.
                 if (auto coord_conv = CoordinateSystemConverter::create(def.coord_sys_type, def.coord_sys_params)) {

@@ -6,12 +6,12 @@
 
 // We can used different Teensy modules to measure pulse timing, each with different pros and cons.
 // Look into each input type's header for details.
-enum InputType {
+enum class InputType {
     kCMP = 0,  // Comparator
     kFTM = 1,  // Flexible Timer Module interrupts
     kPort = 2, // Digital input interrupt
-    kMaxInputType
 };
+constexpr int kInputTypeCount = 3;
 
 class Print;
 class HashedWord;

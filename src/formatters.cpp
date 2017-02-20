@@ -46,14 +46,14 @@ void SensorAnglesTextFormatter::consume(const SensorAnglesFrame& f) {
 // ======  GeometryFormatter  =================================================
 std::unique_ptr<GeometryFormatter> GeometryFormatter::create(uint32_t idx, const FormatterDef &def) {
     switch (def.formatter_subtype) {
-        case kFormatGeoText:    return std::make_unique<GeometryTextFormatter>(idx, def);
-        case kFormatGeoMavlink: return std::make_unique<GeometryMavlinkFormatter>(idx, def);
+        case FormatterSubtype::kPosText:    return std::make_unique<GeometryTextFormatter>(idx, def);
+        case FormatterSubtype::kPosMavlink: return std::make_unique<GeometryMavlinkFormatter>(idx, def);
         default: throw_printf("Unknown geometry formatter subtype: %d", def.formatter_subtype);
     }
 }
 
 // ======  GeometryTextFormatter  =============================================
-void GeometryTextFormatter::consume(const ObjectGeometry& f) {
+void GeometryTextFormatter::consume(const ObjectPosition& f) {
     auto time = f.time.get_value(msec);
     DataChunkPrint printer(this, f.time, node_idx_);
     printer.printf("OBJ%d\t%u\t%.4f\t%.4f\t%.4f", def_.input_idx, time, f.pos[0], f.pos[1], f.pos[2]);
@@ -71,10 +71,10 @@ void GeometryTextFormatter::consume(const ObjectGeometry& f) {
 // stream2 position object0 > usb_serial
 
 HashedWord formatter_types[] = {
-    {"angles",    "angles"_hash,    kFormatAngles    << 16 },
-    {"dataframe", "dataframe"_hash, kFormatDataFrame << 16 },
-    {"position",  "position"_hash,  kFormatGeometry  << 16 | kFormatGeoText},
-    {"mavlink",   "mavlink"_hash,   kFormatGeometry  << 16 | kFormatGeoMavlink},
+    {"angles",    "angles"_hash,    (int)FormatterType::kAngles    << 16 },
+    {"dataframe", "dataframe"_hash, (int)FormatterType::kDataFrame << 16 },
+    {"position",  "position"_hash,  (int)FormatterType::kPosition  << 16 | (int)FormatterSubtype::kPosText},
+    {"mavlink",   "mavlink"_hash,   (int)FormatterType::kPosition  << 16 | (int)FormatterSubtype::kPosMavlink},
 };
 
 
@@ -82,7 +82,7 @@ void FormatterDef::print_def(uint32_t idx, Print &stream) {
     stream.printf("stream%d ", idx);
 
     // Print type & subtype.
-    uint32_t packed_type = formatter_type << 16 | formatter_subtype;
+    uint32_t packed_type = (int)formatter_type << 16 | (int)formatter_subtype;
     for (uint32_t i = 0; i < sizeof(formatter_types) / sizeof(formatter_types[0]); i++)
         if (packed_type == formatter_types[i].idx) {
             stream.printf("%s ", formatter_types[i].word);
@@ -90,13 +90,13 @@ void FormatterDef::print_def(uint32_t idx, Print &stream) {
 
     // Print settings for the type.
     switch (formatter_type) {
-        case kFormatAngles: break;
-        case kFormatDataFrame: break;
-        case kFormatGeometry: {
+        case FormatterType::kAngles: break;
+        case FormatterType::kDataFrame: break;
+        case FormatterType::kPosition: {
             stream.printf("object%d ", input_idx);
             switch (coord_sys_type) {
-                case kDefaultCoordSys: break; // Nothing
-                case kNED: {
+                case CoordSysType::kDefault: break; // Nothing
+                case CoordSysType::kNED: {
                     stream.printf("ned %.1f ", coord_sys_params.ned.north_angle);
                     break;
                 }
@@ -129,9 +129,9 @@ bool FormatterDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_s
 
     // Parse settings for type/subtype
     switch (formatter_type) {
-        case kFormatAngles: break;
-        case kFormatDataFrame: break;
-        case kFormatGeometry: {
+        case FormatterType::kAngles: break;
+        case FormatterType::kDataFrame: break;
+        case FormatterType::kPosition: {
             if (*input_words != "object#"_hash) {
                 err_stream.printf("Need object for position stream type.\n");
                 return false;
@@ -139,9 +139,9 @@ bool FormatterDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_s
             input_idx = input_words->idx;
             input_words++;
 
-            coord_sys_type = kDefaultCoordSys;
+            coord_sys_type = CoordSysType::kDefault;
             if (*input_words == "ned"_hash) {
-                coord_sys_type = kNED;
+                coord_sys_type = CoordSysType::kNED;
                 input_words++;
                 if (!input_words->as_float(&coord_sys_params.ned.north_angle)) {
                     err_stream.printf("Expected north angle after 'ned' keyword.\n");

@@ -15,7 +15,7 @@ constexpr TimeDelta short_pulse_min_time = angle_center_len - cycle_period / 3;
 constexpr TimeDelta short_pulse_max_time = angle_center_len + cycle_period / 3;
 constexpr TimeDelta cycle_processing_point = short_pulse_max_time + TimeDelta(100, usec); // time from start of the cycle.
 
-enum CycleFixLevels {
+enum CycleFixLevels {  // Unscoped enum because we use it more like set of constants.
     kCycleFixNone = 0,
     kCycleFixCandidate = 1,  // From here we have a valid cycle_start_time_
     kCycleFixAcquired = 5,

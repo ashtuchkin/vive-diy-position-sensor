@@ -114,7 +114,7 @@ void PersistentSettings::initialize_from_user_input(Stream &stream) {
         while (!input_cmd) {
             input_cmd = read_line(stream, &input_buf);
 
-            set_led_state(kConfigMode);
+            set_led_state(LedState::kConfigMode);
             update_led_pattern(Timestamp::cur_time());
         } 
         

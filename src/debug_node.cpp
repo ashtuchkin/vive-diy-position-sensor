@@ -55,8 +55,8 @@ void DebugNode::set_output_attached(bool attached) {
 
     // Send command to the output node we're working with.
     Producer<OutputCommand>::produce(attached 
-        ? OutputCommand{.type = OutputCommand::kMakeNonExclusive} 
-        : OutputCommand{.type = OutputCommand::kMakeExclusive, .stream_idx = stream_idx_});
+        ? OutputCommand{.type = OutputCommandType::kMakeNonExclusive} 
+        : OutputCommand{.type = OutputCommandType::kMakeExclusive, .stream_idx = stream_idx_});
     
     output_attached_ = attached;
 }

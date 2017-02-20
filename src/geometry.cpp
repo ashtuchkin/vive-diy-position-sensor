@@ -35,12 +35,13 @@ void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
     // First 2 angles - x, y of station B; second 2 angles - x, y of station C.
     // Y - Up;  X ->   Z v
     // Station ray is inverse Z axis.
-    const SensorLocalGeometry &sens_def = def_.sensors[0];
-    const SensorAngles &sens = f.sensors[sens_def.input_idx];
 
     // Use only full frames (30Hz). In future, we can make this check configurable if 120Hz rate needed.
     if (f.phase_id != 3)  
         return;
+
+    const SensorLocalGeometry &sens_def = def_.sensors[0];
+    const SensorAngles &sens = f.sensors[sens_def.input_idx];
 
     // Check all angles are fresh.
     for (int i = 0; i < num_cycle_phases; i++)
@@ -59,12 +60,17 @@ void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
     calc_ray_vec(base_stations_[1], angles[2], angles[3], ray2);
     //Serial.printf("Ray2: %f %f %f\n", ray2[0], ray2[1], ray2[2]);
 
+    ObjectPosition geo = {
+        .time = f.time,
+        .object_idx = geo_builder_idx_,
+        .fix_level = FixLevel::kFullFix,
+        .pos = {0.f, 0.f, 0.f},
+        .pos_delta = 0.0,
+        .q = {1.f, 0.f, 0.f, 0.f}
+    };
 
-    ObjectGeometry geo = {.time = f.time, .pos = {}, .q = {1.f, 0.f, 0.f, 0.f}};
-
-    float dist;
     intersect_lines(base_stations_[0].origin, ray1, 
-                    base_stations_[1].origin, ray2, &geo.pos, &dist);
+                    base_stations_[1].origin, ray2, &geo.pos, &geo.pos_delta);
 
     last_success_ = f.time;
     for (int i = 0; i < vec3d_size; i++)
@@ -76,13 +82,13 @@ void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
 void PointGeometryBuilder::do_work(Timestamp cur_time) {
     // TODO: Make compatible with multiple geometry objects.
     bool has_fix = cur_time - last_success_ < TimeDelta(80, ms);
-    set_led_state(has_fix ? kFixFound : kNoFix);
+    set_led_state(has_fix ? LedState::kFixFound : LedState::kNoFix);
 }
 
 bool PointGeometryBuilder::debug_cmd(HashedWord *input_words) {
     if (*input_words == "geom#"_hash && input_words->idx == geo_builder_idx_) {
         input_words++;
-        return producer_debug_cmd(this, input_words, "ObjectGeometry", geo_builder_idx_);
+        return producer_debug_cmd(this, input_words, "ObjectPosition", geo_builder_idx_);
     }
     return false;
 }
@@ -170,8 +176,8 @@ CoordinateSystemConverter::CoordinateSystemConverter(float mat[9]) {
 
 std::unique_ptr<CoordinateSystemConverter> CoordinateSystemConverter::create(CoordSysType type, const CoordSysDef& def) {
     switch (type) {
-        case kDefaultCoordSys: return nullptr; // Do nothing.
-        case kNED: return CoordinateSystemConverter::NED(def.ned);
+        case CoordSysType::kDefault: return nullptr; // Do nothing.
+        case CoordSysType::kNED: return CoordinateSystemConverter::NED(def.ned);
         default: throw_printf("Unknown coord sys type: %d", type);
     }
 }
@@ -187,24 +193,24 @@ std::unique_ptr<CoordinateSystemConverter> CoordinateSystemConverter::NED(const 
     return std::make_unique<CoordinateSystemConverter>(mat);
 }
 
-void CoordinateSystemConverter::consume(const ObjectGeometry& geo) {
-    ObjectGeometry res(geo);
+void CoordinateSystemConverter::consume(const ObjectPosition& pos) {
+    ObjectPosition out_pos(pos);
 
     // Convert position
-    arm_matrix_instance_f32 src_mat = {3, 1, const_cast<float*>(geo.pos)};
-    arm_matrix_instance_f32 dest_mat = {3, 1, res.pos};
+    arm_matrix_instance_f32 src_mat = {3, 1, const_cast<float*>(pos.pos)};
+    arm_matrix_instance_f32 dest_mat = {3, 1, out_pos.pos};
     arm_matrix_instance_f32 rotation_mat = {3, 3, mat_};
     arm_mat_mult_f32(&rotation_mat, &src_mat, &dest_mat);
 
     // TODO: Convert quaternion.
-    assert(geo.q[0] == 1.0f);
+    assert(pos.q[0] == 1.0f);
 
-    produce(res);
+    produce(out_pos);
 }
 
 bool CoordinateSystemConverter::debug_cmd(HashedWord *input_words) {
     if (*input_words++ == "coord"_hash) {
-        return producer_debug_cmd(this, input_words, "ObjectGeometry");
+        return producer_debug_cmd(this, input_words, "ObjectPosition");
     }
     return false;
 }

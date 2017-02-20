@@ -4,14 +4,14 @@
 #include "common.h"
 #include "geometry.h"
 
-enum FormatterType {
-    kFormatAngles,
-    kFormatDataFrame,
-    kFormatGeometry,
+enum class FormatterType {
+    kAngles,
+    kDataFrame,
+    kPosition,
 };
-enum FormatterSubtype {
-    kFormatGeoText,
-    kFormatGeoMavlink,
+enum class FormatterSubtype {
+    kPosText,
+    kPosMavlink,
 };
 
 // Stored definition of a FormatterNode
@@ -56,7 +56,7 @@ public:
 // Base class for geometry formatters.
 class GeometryFormatter 
     : public FormatterNode
-    , public Consumer<ObjectGeometry> {
+    , public Consumer<ObjectPosition> {
 public:
     static std::unique_ptr<GeometryFormatter> create(uint32_t idx, const FormatterDef &def);
 
@@ -68,7 +68,7 @@ protected:
 class GeometryTextFormatter : public GeometryFormatter {
 public:
     GeometryTextFormatter(uint32_t idx, const FormatterDef &def) : GeometryFormatter(idx, def) {}
-    virtual void consume(const ObjectGeometry& f);
+    virtual void consume(const ObjectPosition& f);
 };
 
 
@@ -76,13 +76,13 @@ public:
 class GeometryMavlinkFormatter : public GeometryFormatter {
 public:
     GeometryMavlinkFormatter(uint32_t idx, const FormatterDef &def);
-    virtual void consume(const ObjectGeometry& f);
+    virtual void consume(const ObjectPosition& f);
 
     virtual bool debug_cmd(HashedWord *input_words);
     virtual void debug_print(Print& stream);
 
 private:
-    bool position_valid(const ObjectGeometry& g);
+    bool position_valid(const ObjectPosition& g);
     void send_message(uint32_t msgid, const char *packet, Timestamp cur_time, uint8_t min_length, uint8_t length, uint8_t crc_extra);
 
     uint32_t current_tx_seq_;

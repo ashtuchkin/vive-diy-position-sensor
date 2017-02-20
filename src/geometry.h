@@ -36,7 +36,7 @@ struct GeometryBuilderDef {
 class GeometryBuilder
     : public WorkerNode
     , public Consumer<SensorAnglesFrame>
-    , public Producer<ObjectGeometry>  {
+    , public Producer<ObjectPosition>  {
 public:
     GeometryBuilder(uint32_t idx, const GeometryBuilderDef &geo_def,
                     const Vector<BaseStationGeometryDef, num_base_stations> &base_stations);
@@ -63,9 +63,9 @@ private:
 };
 
 
-enum CoordSysType {
-    kDefaultCoordSys,
-    kNED,
+enum class CoordSysType {
+    kDefault,  // No conversion.
+    kNED,      // North-East-Down.
 };
 
 struct NEDCoordDef {
@@ -80,8 +80,8 @@ union CoordSysDef {
 // Helper node to convert coordinates to a different coordinate system.
 class CoordinateSystemConverter
     : public WorkerNode
-    , public Consumer<ObjectGeometry>
-    , public Producer<ObjectGeometry> {
+    , public Consumer<ObjectPosition>
+    , public Producer<ObjectPosition> {
 public:
     CoordinateSystemConverter(float m[9]);
 
@@ -91,7 +91,7 @@ public:
     // Needs angle between North and X axis, in degrees.
     static std::unique_ptr<CoordinateSystemConverter> NED(const NEDCoordDef &def);
 
-    virtual void consume(const ObjectGeometry& geo);
+    virtual void consume(const ObjectPosition& geo);
     virtual bool debug_cmd(HashedWord *input_words);
     virtual void debug_print(Print& stream);
 

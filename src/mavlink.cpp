@@ -19,7 +19,7 @@ GeometryMavlinkFormatter::GeometryMavlinkFormatter(uint32_t idx, const Formatter
 
 }
 
-bool GeometryMavlinkFormatter::position_valid(const ObjectGeometry& g) {
+bool GeometryMavlinkFormatter::position_valid(const ObjectPosition& g) {
     // Filter out outliers.
     constexpr float max_position_jump = 0.05; // meters
     bool is_valid = false;
@@ -38,7 +38,7 @@ bool GeometryMavlinkFormatter::position_valid(const ObjectGeometry& g) {
     return is_valid;
 }
 
-void GeometryMavlinkFormatter::consume(const ObjectGeometry& g) {
+void GeometryMavlinkFormatter::consume(const ObjectPosition& g) {
     // Send the data to given stream. 
     // NOTE: The sending is synchronous, i.e. it won't return before the sending completes.
     // We might want to introduce a buffering here.

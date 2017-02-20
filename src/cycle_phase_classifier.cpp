@@ -1,7 +1,7 @@
 #include "cycle_phase_classifier.h"
 #include <Arduino.h>
 
-enum PhaseFixLevels {
+enum PhaseFixLevels {  // Unscoped enum because we use it more like set of constants.
     kPhaseFixNone = 0,
     kPhaseFixCandidate = 1,
     kPhaseFixAcquired = 4,

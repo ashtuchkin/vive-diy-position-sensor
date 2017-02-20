@@ -31,8 +31,8 @@ void OutputNode::consume(const DataChunk &chunk) {
 
 void OutputNode::consume(const OutputCommand& cmd) {
     switch (cmd.type) {
-        case OutputCommand::kMakeExclusive: exclusive_mode_ = true; exclusive_stream_idx_ = cmd.stream_idx; break;
-        case OutputCommand::kMakeNonExclusive: exclusive_mode_ = false; break;
+        case OutputCommandType::kMakeExclusive: exclusive_mode_ = true; exclusive_stream_idx_ = cmd.stream_idx; break;
+        case OutputCommandType::kMakeNonExclusive: exclusive_mode_ = false; break;
     }
 }
 

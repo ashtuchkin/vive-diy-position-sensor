@@ -48,7 +48,7 @@ inline void print_value<DataFrame>(Print &stream, const DataFrame& frame) {
 }
 
 template<>
-inline void print_value<ObjectGeometry>(Print &stream, const ObjectGeometry& val) {
+inline void print_value<ObjectPosition>(Print &stream, const ObjectPosition& val) {
     stream.printf("\n%dms: pos %.3f %.3f %.3f ", val.time.get_value(msec), val.pos[0], val.pos[1], val.pos[2]);
     if (val.q[0] != 1.0f)
         stream.printf("q %.3f %.3f %.3f %.3f ", val.q[0], val.q[1], val.q[2], val.q[3]);
