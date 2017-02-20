@@ -55,11 +55,14 @@ void InputNode::debug_print(Print& stream) {
 #include "Print.h"
 #include "primitives/string_utils.h"
 
-uint32_t input_type_hashes[kInputTypeCount] = {"cmp"_hash, "ftm"_hash, "port_irq"_hash};
-const char *input_type_names[kInputTypeCount] = {"cmp", "ftm", "port_irq"};
+HashedWord input_types[kInputTypeCount] = {
+    [(int)InputType::kCMP]  = { "cmp", "cmp"_hash },
+    [(int)InputType::kFTM]  = { "ftm", "ftm"_hash },
+    [(int)InputType::kPort] = { "port_irq", "port_irq"_hash },
+};
 
 void InputDef::print_def(uint32_t idx, Print &stream) {
-    stream.printf("sensor%d pin %d %s %s", idx, pin, pulse_polarity ? "positive" : "negative", input_type_names[(int)input_type]);
+    stream.printf("sensor%d pin %d %s %s", idx, pin, pulse_polarity ? "positive" : "negative", input_types[(int)input_type].word);
     if (input_type == InputType::kCMP)
         stream.printf(" %d", initial_cmp_threshold);
     stream.println();
@@ -86,7 +89,7 @@ bool InputDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_strea
     } else {
         int i; 
         for (i = 0; i < kInputTypeCount; i++)
-            if (*input_words == input_type_hashes[i]) {
+            if (*input_words == input_types[i]) {
                 input_type = (InputType)i;
                 break;
             }
