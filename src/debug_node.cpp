@@ -5,49 +5,60 @@
 #include "settings.h"
 #include "led_state.h"
 #include "platform.h"
-
-#include <Stream.h>
-#include <core_pins.h>
-#include <pins_arduino.h>  // For blinker
+#include "print_helpers.h"
 
 
-DebugNode::DebugNode(Pipeline *pipeline, Stream &debug_stream) 
+DebugNode::DebugNode(Pipeline *pipeline)
     : pipeline_(pipeline)
-    , debug_stream_(debug_stream)
-    , detachable_print_(std::make_unique<DetachablePrint>(debug_stream))
     , continuous_debug_print_(0)
+    , stream_idx_(0x1000)
+    , output_attached_(true)
     , print_debug_memory_(false) {
     assert(pipeline);
 }
 
-void DebugNode::do_work(Timestamp cur_time) {
+void DebugNode::consume_line(char *input_cmd, Timestamp time) {
     // Process debug input commands
-    if (char *input_cmd = read_line(debug_stream_)) {
-        bool print_debug = !detachable_print_->is_attached() && !continuous_debug_print_;
-        detachable_print_->set_attached(false);
-        continuous_debug_print_ = 0;
+    bool print_debug = !output_attached_ && !continuous_debug_print_;
+    set_output_attached(false);
+    continuous_debug_print_ = 0;
 
-        HashedWord* hashed_words = hash_words(input_cmd);
-        bool res = !*hashed_words || pipeline_->debug_cmd(hashed_words);
-        if (!detachable_print_->is_attached() && !continuous_debug_print_) {
-            if (!res)
-                debug_stream_.println("Unknown command.");                
-            else if (print_debug)
-                pipeline_->debug_print(debug_stream_);
-            debug_stream_.print("debug> ");
-        }
+    HashedWord* hashed_words = hash_words(input_cmd);
+    bool res = !*hashed_words || pipeline_->debug_cmd(hashed_words);
+    if (!output_attached_ && !continuous_debug_print_) {
+        DataChunkPrint printer(this, time, stream_idx_);
+        if (!res)
+            printer.printf("Unknown command.\n");                
+        else if (print_debug)
+            pipeline_->debug_print(printer);
+        printer.printf("debug> ");
+    }
+}
+
+void DebugNode::do_work(Timestamp cur_time) {
+    // Print current debug state if continuous printing is enabled.
+    if (continuous_debug_print_ > 0 
+            && throttle_ms(TimeDelta(continuous_debug_print_, ms), cur_time, &continuous_print_period_)) {
+        DataChunkPrint printer(this, cur_time, stream_idx_);
+        pipeline_->debug_print(printer);
     }
 
-    // Print current debug state
-    if (continuous_debug_print_ && throttle_ms(TimeDelta(continuous_debug_print_, ms), cur_time, &debug_print_period_))
-        pipeline_->debug_print(debug_stream_);
-    
     // Update led pattern.
     update_led_pattern(cur_time);
 }
 
-Print &DebugNode::stream() {
-    return *detachable_print_.get();
+// Sometimes the same output is used both for debug and to print values. We want to detach the values stream
+// while we're in debug mode.
+void DebugNode::set_output_attached(bool attached) {
+    if (output_attached_ == attached)
+        return;
+
+    // Send command to the output node we're working with.
+    Producer<OutputCommand>::produce(attached 
+        ? OutputCommand{.type = OutputCommand::kMakeNonExclusive} 
+        : OutputCommand{.type = OutputCommand::kMakeExclusive, .stream_idx = stream_idx_});
+    
+    output_attached_ = attached;
 }
 
 bool DebugNode::debug_cmd(HashedWord *input_words) {
@@ -62,18 +73,21 @@ bool DebugNode::debug_cmd(HashedWord *input_words) {
         break;
     
     case "!"_hash: settings.restart_in_configuration_mode(); return true;
-    case "o"_hash: detachable_print_->set_attached(true); return true;
+    case "o"_hash: set_output_attached(true); return true;
     case "c"_hash:
         uint32_t val;
         if (!*input_words) {
-            continuous_debug_print_ = 1000; debug_print_period_ = Timestamp::cur_time(); return true;
+            continuous_debug_print_ = 1000; continuous_print_period_ = Timestamp::cur_time(); return true;
         } else if (input_words->as_uint32(&val) && val >= 10 && val <= 100000) {
-            continuous_debug_print_ = val; debug_print_period_ = Timestamp::cur_time(); return true;
+            continuous_debug_print_ = val; continuous_print_period_ = Timestamp::cur_time(); return true;
         }
         break;
     }
     return false;
 }
+
+
+// ======  System-wide debug metrics  =========================================
 
 // Link-time constant markers. Note, you need the *address* of these.
 extern char _sdata;   // start of static data

@@ -6,7 +6,8 @@
 
 // Tunable
 constexpr int max_num_inputs = 8;           // Number of concurrent sensors we support.
-constexpr int max_bytes_in_data_frame = 50;
+constexpr int max_bytes_in_data_frame = 64;
+constexpr int max_bytes_in_data_chunk = 64;
 
 // Not tunable: constant for Lighthouse system.
 constexpr int num_base_stations = 2;
@@ -46,6 +47,22 @@ struct DataFrame {
 
 struct ObjectGeometry {
     Timestamp time;
-    float xyz[3]; // Position
+    float pos[3]; // Object position
     float q[4];   // Rotation quaternion
+};
+
+// DataChunk is used to send raw data to outputs.
+struct DataChunk {
+    Timestamp time;
+    Vector<uint8_t, max_bytes_in_data_chunk> data;  // Data of this chunk.
+    uint32_t stream_idx;  // Used to distinguish between different streams going to the same output. Useful for polling mode.
+    bool last_chunk;  // True if this is the last chunk in a "packet". Useful for polling mode.
+};
+
+struct OutputCommand {
+    enum OutputCommandType {
+        kMakeExclusive,  // Make given stream_idx exclusive and don't accept data chunks from other streams.
+        kMakeNonExclusive,  // Remove exclusivity.
+    } type;
+    uint32_t stream_idx;
 };

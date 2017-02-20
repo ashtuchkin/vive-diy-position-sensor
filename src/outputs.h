@@ -3,61 +3,50 @@
 #include "primitives/producer_consumer.h"
 #include "common.h"
 
-class OutputNode : public WorkerNode {
+// usb serial + 3x hardware serials.
+constexpr int num_outputs = 4;
 
+struct OutputDef {
+    bool active;
+    uint32_t bitrate;
+
+    void print_def(uint32_t idx, Print &stream);
+    bool parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream);
 };
 
-// Output sensor angles in a text form.
-class SensorAnglesTextOutput
-    : public OutputNode
-    , public Consumer<SensorAnglesFrame> {
+class Stream;
+
+class OutputNode
+    : public WorkerNode
+    , public Consumer<DataChunk>
+    , public Consumer<OutputCommand>
+    , public Producer<DataChunk> {
 public:
-    SensorAnglesTextOutput(Print &stream);
-    virtual void consume(const SensorAnglesFrame& f);
-    virtual bool debug_cmd(HashedWord *input_words);
+    static std::unique_ptr<OutputNode> create(uint32_t idx, const OutputDef& def);
 
-private:
-    Print *stream_;
-    bool debug_disable_output_;
+    // Common methods that do i/o with the stream_ object.
+    virtual void consume(const DataChunk &chunk);
+    virtual void consume(const OutputCommand& cmd);
+    virtual void do_work(Timestamp cur_time);
+
+protected:
+    OutputNode(uint32_t idx, const OutputDef& def, Stream &stream);
+    uint32_t node_idx_;
+    OutputDef def_;
+    Stream &stream_;
+    DataChunk chunk_;
+    bool exclusive_mode_;
+    uint32_t exclusive_stream_idx_;
 };
 
 
-// Output object geometry in a text form.
-class GeometryTextOutput
-    : public OutputNode
-    , public Consumer<ObjectGeometry> {
+class UsbSerialOutputNode : public OutputNode {
 public:
-    GeometryTextOutput(Print &stream, uint32_t object_idx);
-    virtual void consume(const ObjectGeometry& f);
-    virtual bool debug_cmd(HashedWord *input_words);
-
-private:
-    Print *stream_;
-    uint32_t object_idx_;
-    bool debug_disable_output_;
+    UsbSerialOutputNode(uint32_t idx, const OutputDef& def);
 };
 
-
-// Output geometry of an object in Mavlink format.
-class MavlinkGeometryOutput
-    : public OutputNode
-    , public Consumer<ObjectGeometry> {
+class HardwareSerialOutputNode : public OutputNode {
 public:
-    MavlinkGeometryOutput(Print &stream);
-    virtual void consume(const ObjectGeometry& f);
-
-    virtual bool debug_cmd(HashedWord *input_words);
-    virtual void debug_print(Print& stream);
-
-private:
-    bool position_valid(const ObjectGeometry& g);
-    void send_message(uint32_t msgid, const char *packet, uint8_t min_length, uint8_t length, uint8_t crc_extra);
-
-    Print &stream_;
-    uint32_t current_tx_seq_;
-    Timestamp last_message_timestamp_;
-    float last_pos_[3];
-    bool debug_print_state_;
-    uint32_t debug_late_messages_;
+    HardwareSerialOutputNode(uint32_t idx, const OutputDef& def);
+    virtual void start();
 };
-

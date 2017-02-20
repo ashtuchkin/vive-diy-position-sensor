@@ -35,16 +35,16 @@ class Pipeline : public WorkerNode {
 public:
     // Adding WorkerNodes to this pipeline. Note, after this Pipeline starts to own them and will
     // destruct them when needed. Suggested usage:
-    // SpecializedNode *node = pipeline->emplace_front(std::make_unique<SpecializedNode>());
+    // SpecializedNode *node = pipeline->add_front(std::make_unique<SpecializedNode>());
     template<typename T> 
-    T *emplace_front(std::unique_ptr<T> node) { 
+    T *add_front(std::unique_ptr<T> node) { 
         T *res = node.get();
         nodes_.emplace_front(std::move(node));
         return res;
     }
 
     template<typename T> 
-    T *emplace_back(std::unique_ptr<T> node) {
+    T *add_back(std::unique_ptr<T> node) {
         T *res = node.get();
         nodes_.emplace_back(std::move(node));
         return res;

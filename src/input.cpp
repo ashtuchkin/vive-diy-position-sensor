@@ -24,21 +24,20 @@ InputNode::InputNode(uint32_t input_idx)
 void InputNode::do_work(Timestamp cur_time) {
     Pulse p;
     while (pulses_buf_.dequeue(&p)) {
-        p.input_idx = input_idx_;
         produce(p);
     }
 }
 
 void InputNode::enqueue_pulse(Timestamp start_time, TimeDelta len) {
     pulses_buf_.enqueue({
-        .input_idx = 0,  // This will be set on dequeue.
+        .input_idx = input_idx_,
         .start_time = start_time,
         .pulse_len = len,
     });
 }
 
 bool InputNode::debug_cmd(HashedWord *input_words) {
-    if (*input_words == "inp#"_hash && input_words->idx == input_idx_) {
+    if (*input_words == "sensor#"_hash && input_words->idx == input_idx_) {
         input_words++;
         switch (*input_words++) {
             case "pulses"_hash: return producer_debug_cmd<Pulse>(this, input_words, "Pulse", input_idx_);
@@ -60,7 +59,7 @@ uint32_t input_type_hashes[kMaxInputType] = {"cmp"_hash, "ftm"_hash, "port_irq"_
 const char *input_type_names[kMaxInputType] = {"cmp", "ftm", "port_irq"};
 
 void InputDef::print_def(uint32_t idx, Print &stream) {
-    stream.printf("i%d pin %d %s %s", idx, pin, pulse_polarity ? "positive" : "negative", input_type_names[input_type]);
+    stream.printf("sensor%d pin %d %s %s", idx, pin, pulse_polarity ? "positive" : "negative", input_type_names[input_type]);
     if (input_type == kCMP)
         stream.printf(" %d", initial_cmp_threshold);
     stream.println();

@@ -1,13 +1,10 @@
 
 ### TODO
 
-Next:
  * [ ] Output point distance & fix level
- * [ ] Add outputs, geo objects and coord conversions to settings
- * [ ] Re-check all last-success timestamps - they don't survive the overflow.
+ * [ ] Re-check all last-success timestamps (LongTimestamp) - they don't survive the overflow.
  * [ ] Add FTM input
  * [ ] Rework docs.
- * [ ] Make USB Serial switchable between debug io and regular mode.
  * [ ] Assertion/termination system.
 
 Later:
@@ -17,8 +14,10 @@ Later:
  * [ ] Remove Vector in favor of std::vector.
  * [ ] Rewrite _sbrk() to not allow heap to go to into stack.
  * [ ] Add unit testing
+ * [ ] Add polling mode for outputs
  * [ ] DataFrame: Check CRC32; Decode values.
  * [ ] Split PersistentSettings to Settings and Persistent<>
+ * [ ] Get rid of Teensy's Print. Use vsnprintf instead. debug_print, print_def, parse_def, DataChunkPrint
  * [ ] (Maybe) Introduce EASTL library and all its niceties like fixed_vector. Tried it and it looks problematic (platform not supported + threading issues).
 
 ### Style guide

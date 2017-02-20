@@ -4,7 +4,7 @@
 #include <list>
 
 // Very simple, low-overhead Producer/Consumer pattern.
-// To use, inherit from Consumer/Producer as needed, implement consume() then call connect() and produce()
+// To use, inherit from Consumer/Producer as needed, implement consume() then call pipe() and produce()
 template<typename T>
 class Consumer {
 public:
@@ -29,22 +29,11 @@ public:
 template<typename T, int out_idx = 0>
 class Producer {
 public:
-    // This method 'connects' (subscribes) consumer to producer.
-    void connect(Consumer<T> *consumer) {
+    // This method connects producer to consumer.
+    void pipe(Consumer<T> *consumer) {
         consumers_.push_front(consumer);
     }
 
-    // Mostly used for debugging purposes, this method allows external parties to set up a logger for this producer.
-    // Note: this class will own this logger and dispose it when not needed anymore.
-    inline void set_logger(ProduceLogger<T> *logger) {
-        logger_.reset(logger);
-    }
-    inline ProduceLogger<T> *logger() const {
-        return logger_.get();
-    }
-
-    virtual ~Producer() {};
-protected:
     // This method should be called to send the value to all connected consumers.
     void produce(const T& val) {
         for (auto &cons : consumers_)
@@ -58,6 +47,16 @@ protected:
         return !consumers_.empty();
     }
 
+    // Mostly used for debugging purposes, this method allows external parties to set up a logger for this producer.
+    // Note: this class will own this logger and dispose it when not needed anymore.
+    inline void set_logger(std::unique_ptr<ProduceLogger<T>> logger) {
+        logger_ = std::move(logger);
+    }
+    inline ProduceLogger<T> *logger() const {
+        return logger_.get();
+    }
+
+    virtual ~Producer() {};
 private:
     std::list<Consumer<T> *> consumers_;
     std::unique_ptr<ProduceLogger<T>> logger_;

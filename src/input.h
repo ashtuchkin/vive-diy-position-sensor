@@ -43,7 +43,6 @@ public:
 
 protected:
     InputNode(uint32_t input_idx);
-
     void enqueue_pulse(Timestamp start, TimeDelta len);
 
 private:

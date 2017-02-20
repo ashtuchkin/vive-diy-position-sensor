@@ -59,7 +59,22 @@ public:
     virtual void debug_print(Print& stream);
 
 private:
-    Timestamp last_success_;
+    Timestamp last_success_;  // LongTimestamp
+};
+
+
+enum CoordSysType {
+    kDefaultCoordSys,
+    kNED,
+};
+
+struct NEDCoordDef {
+    // Angle between North and X axis, in radians.
+    float north_angle;
+};
+
+union CoordSysDef {
+    NEDCoordDef ned;
 };
 
 // Helper node to convert coordinates to a different coordinate system.
@@ -70,9 +85,11 @@ class CoordinateSystemConverter
 public:
     CoordinateSystemConverter(float m[9]);
 
+    static std::unique_ptr<CoordinateSystemConverter> create(CoordSysType type, const CoordSysDef& def);
+
     // Convert from standard Vive coordinate system to NED.
     // Needs angle between North and X axis, in degrees.
-    static std::unique_ptr<CoordinateSystemConverter> NED(float angle_in_degrees);
+    static std::unique_ptr<CoordinateSystemConverter> NED(const NEDCoordDef &def);
 
     virtual void consume(const ObjectGeometry& geo);
     virtual bool debug_cmd(HashedWord *input_words);

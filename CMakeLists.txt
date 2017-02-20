@@ -13,6 +13,7 @@ set(SOURCE_FILES
         src/cycle_phase_classifier.cpp
         src/data_frame_decoder.cpp
         src/debug_node.cpp
+        src/formatters.cpp
         src/geometry.cpp
         src/input.cpp
         src/input_cmp.cpp

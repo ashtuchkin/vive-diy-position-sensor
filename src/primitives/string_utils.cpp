@@ -1,21 +1,21 @@
 #include "string_utils.h"
+#include "vector.h"
+#include <stdio.h>
 #include <utility>
-#include <Arduino.h>
+#include <Stream.h>
 
 // Non-blocking version of Stream.readBytesUntil('\n', ...). Returns line if found, or NULL if no line.
-char *read_line(Stream &stream) {
-    static char input_string_buf[max_input_str_len];
-    static int input_string_pos = 0;
+char *read_line(Stream &stream, Vector<char, max_input_str_len> *buf) {
     while (true) {
         int next_char = stream.read();
-        if (next_char == -1) {
+        if (next_char < 0) {
             return NULL;
         } else if (next_char == '\n') {
-            input_string_buf[input_string_pos] = 0;
-            input_string_pos = 0;
-            return input_string_buf;
-        } else if (input_string_pos < max_input_str_len - 1) {
-            input_string_buf[input_string_pos++] = next_char;
+            buf->push(0);
+            buf->clear();
+            return &(*buf)[0];
+        } else if (buf->size() < buf->max_size() - 1) {
+            buf->push(next_char);
         }
     }
 }
@@ -86,9 +86,10 @@ bool suffixed_by_int(char *word, char **first_digit, uint32_t *value) {
 HashedWord *hash_words(char *str) {
     static HashedWord hashes[max_words+1];
     uint32_t i = 0;
-    char *cur_word, *first_digit;
-    for (; (cur_word = next_word(&str)) && i < max_words; i++) {
+    for (char *cur_word; (cur_word = next_word(&str)) && i < max_words; i++) {
+        if (cur_word[0] == '#') break;  // Comment.
         hashes[i].word = cur_word;
+        char *first_digit;
         if (suffixed_by_int(cur_word, &first_digit, &hashes[i].idx)) {
             char c = '#';
             // Create hash of cur_word without digits, but with prefix '#'
@@ -105,5 +106,13 @@ HashedWord *hash_words(char *str) {
     return hashes;
 }
 
-// Buffer for throw_printf function.
-char throw_printf_message[128];
+// Throws custom exception with a printf-formatted string. Uses static buffer to avoid mem allocation
+// and std::string-related errors.
+[[noreturn]] void throw_printf(const char* format, ...) {
+    static char throw_printf_message[128];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(throw_printf_message, sizeof(throw_printf_message), format, args);
+    va_end(args);
+    throw ValidationException(throw_printf_message);
+}

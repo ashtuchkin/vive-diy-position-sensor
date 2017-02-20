@@ -1,10 +1,10 @@
 #pragma once
 #include <stdint.h>
-#include <stdio.h>
 #include <exception>
 #include "../primitives/hash.h"
 
 class Stream;
+template<typename T, unsigned C> class Vector;
 
 // Input string length constants.
 constexpr int max_input_str_len = 256;
@@ -12,7 +12,8 @@ constexpr int max_words = 64;
 
 
 // Non-blocking version of Stream.readBytesUntil('\n', ...). Returns line if found, or NULL if no line.
-char *read_line(Stream &stream);
+// 'buf' argument needs to be provided to keep the accumulated data between calls.
+char *read_line(Stream &stream, Vector<char, max_input_str_len> *buf);
 
 // Parses provided string to null-terminated array of trimmed strings.
 // NOTE: Provided string is changed - null characters are added after words.
@@ -31,7 +32,7 @@ bool parse_float(const char *str, float *res);
 // Very useful when paired with static hashed literals like "abc"_hash .
 // If the parsed word is in the form "<word><num>", then we use hash "<word>#" and set idx = <num>.
 struct HashedWord {
-    char *word;
+    const char *word;
     uint32_t hash;
     uint32_t idx;
     operator unsigned long() const { return hash; } // By default, can be casted to uint32_t as a hash.
@@ -53,9 +54,4 @@ private:
 
 // Throws custom exception with a printf-formatted string. Uses static buffer to avoid mem allocation
 // and std::string-related errors.
-template<typename... Args>
-[[noreturn]] inline void throw_printf(const char* format, Args... args) {
-    extern char throw_printf_message[128];
-    snprintf(throw_printf_message, sizeof(throw_printf_message), format, args...);
-    throw ValidationException(throw_printf_message);
-}
+[[noreturn]] void throw_printf(const char* format, ...);

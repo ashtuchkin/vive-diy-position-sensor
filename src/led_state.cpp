@@ -14,7 +14,7 @@ struct LedPattern {
 static bool initialized = false;
 static uint32_t pattern_idx = 0;
 static LedState cur_state = kNotInitialized;
-static Timestamp prev_called;
+static Timestamp prev_called;  // LongTimestamp
 
 void set_led_state(LedState state) {
     if (state != cur_state) {

@@ -1,7 +1,7 @@
 // This file is used to define logging primitives for Producer-Consumer pairs.
 // Each Producer node should call debug_cmd_producer function in its debug_cmd method to enable log of producing.
 // Also, a printing function print_value should be defined for each data structure used for Producing.
-#pragma once
+// NOTE: This shouldn't be included in other header files. Just .cpp files.
 #include "primitives/producer_consumer.h"
 #include "primitives/circular_buffer.h"
 #include "primitives/hash.h"
@@ -14,12 +14,12 @@ inline void print_value(Print &stream, const T& val);
 
 template<>
 inline void print_value<Pulse>(Print &stream, const Pulse& val) {
-    stream.printf("\ninp %d, time %dus, len %d ", val.input_idx, val.start_time.get_value(usec), val.pulse_len.get_value(usec));
+    stream.printf("\nsensor %d, time %dus, len %d ", val.input_idx, val.start_time.get_value(usec), val.pulse_len.get_value(usec));
 }
 
 template<>
 inline void print_value<SensorAnglesFrame>(Print &stream, const SensorAnglesFrame& val) {
-    stream.printf("\ntime %dms, cycle %u, angles ", 
+    stream.printf("\n%dms: cycle %u, angles ", 
                   val.time.get_value(msec), val.cycle_idx, val.phase_id);
     for (uint32_t i = 0; i < val.sensors.size(); i++) {
         auto sens = val.sensors[i];
@@ -36,21 +36,29 @@ inline void print_value<SensorAnglesFrame>(Print &stream, const SensorAnglesFram
 
 template<>
 inline void print_value<DataFrameBit>(Print &stream, const DataFrameBit& val) {
-    stream.printf("time %dms, base_station %d, cycle %d, bit %d ", 
+    stream.printf("\n%dms: base %d, cycle %d, bit %d ", 
                   val.time.get_value(msec), val.base_station_idx, val.cycle_idx, val.bit);
 }
 
 template<>
 inline void print_value<DataFrame>(Print &stream, const DataFrame& frame) {
+    stream.printf("\n%dms: base %d, data ", frame.time.get_value(msec), frame.base_station_idx);
     for (uint32_t i = 0; i < frame.bytes.size(); i++)
         stream.printf("%02X ", frame.bytes[i]);
 }
 
 template<>
 inline void print_value<ObjectGeometry>(Print &stream, const ObjectGeometry& val) {
-    stream.printf("\ntime %dms, pos %.3f %.3f %.3f ", val.time.get_value(msec), val.xyz[0], val.xyz[1], val.xyz[2]);
+    stream.printf("\n%dms: pos %.3f %.3f %.3f ", val.time.get_value(msec), val.pos[0], val.pos[1], val.pos[2]);
     if (val.q[0] != 1.0f)
         stream.printf("q %.3f %.3f %.3f %.3f ", val.q[0], val.q[1], val.q[2], val.q[3]);
+}
+
+template<>
+inline void print_value<DataChunk>(Print &stream, const DataChunk& chunk) {
+    stream.printf("\n%dms: stream %d, data ", chunk.time.get_value(msec), chunk.stream_idx);
+    for (uint32_t i = 0; i < chunk.data.size(); i++)
+        stream.printf("%02x ", chunk.data[i]);
 }
 
 
@@ -85,7 +93,7 @@ public:
     PrintingProducerLogger(const char *name, uint32_t idx): name_(name), idx_(idx), counter_(0) {}
     virtual void log_produce(const T& val) {
         if (log_.full()) 
-            log_.pop_front();  // Ensure we have space to write, we're less interested in old values.
+            log_.pop_front();  // Ensure we have space to write, we're more interested in recent values.
         log_.enqueue(val);
         counter_++;
     }
@@ -120,9 +128,9 @@ private:
 template<typename T>
 bool producer_debug_cmd(Producer<T> *producer, HashedWord *input_words, const char *name, uint32_t idx = -1) {
     switch (input_words[0].hash) {
-        case static_hash("count"): producer->set_logger(new CountingProducerLogger<T>(name, idx)); return true;
-        case static_hash("show"): producer->set_logger(new PrintingProducerLogger<T>(name, idx)); return true;
-        case static_hash("off"): producer->set_logger(nullptr); return true;
+        case static_hash("count"): producer->set_logger(std::make_unique<CountingProducerLogger<T>>(name, idx)); return true;
+        case static_hash("show"):  producer->set_logger(std::make_unique<PrintingProducerLogger<T>>(name, idx)); return true;
+        case static_hash("off"):   producer->set_logger(nullptr); return true;
     }
     return false;
 }

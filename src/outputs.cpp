@@ -1,72 +1,106 @@
 #include "outputs.h"
 #include <Arduino.h>
 
-SensorAnglesTextOutput::SensorAnglesTextOutput(Print &stream)
-    : stream_(&stream)
-    , debug_disable_output_(false) {
+static HardwareSerial *hardware_serials[num_outputs] = {nullptr, &Serial1, &Serial2, &Serial3};
+
+OutputNode::OutputNode(uint32_t idx, const OutputDef& def, Stream &stream)
+    : node_idx_(idx)
+    , def_(def)
+    , stream_(stream)
+    , chunk_{}
+    , exclusive_mode_(false)
+    , exclusive_stream_idx_(0) {
 }
 
-void SensorAnglesTextOutput::consume(const SensorAnglesFrame& f) {
-    // Only print on the last phase.
-    if (f.phase_id != 3 || debug_disable_output_)
+std::unique_ptr<OutputNode> OutputNode::create(uint32_t idx, const OutputDef& def) {
+    if (idx == 0)
+        return std::make_unique<UsbSerialOutputNode>(idx, def);
+    else if (idx < num_outputs)
+        return std::make_unique<HardwareSerialOutputNode>(idx, def);
+    else
+        throw_printf("Invalid output index: %d", idx);
+}
+
+void OutputNode::consume(const DataChunk &chunk) {
+    if (exclusive_mode_ && exclusive_stream_idx_ != chunk.stream_idx)
         return;
-
-    auto time = f.time.get_value(msec);
-    stream_->printf("ANG\t%d", time);
-    for (uint32_t i = 0; i < f.sensors.size(); i++) {
-        const SensorAngles &angles = f.sensors[i];
-        for (uint32_t j = 0; j < num_cycle_phases; j++) {
-            if (angles.updated_cycles[j] == f.cycle_idx - f.phase_id + j)
-                stream_->printf("\t%.4f", angles.angles[j]);
-            else
-                stream_->print("\t");
-        }
-    }
-    stream_->println();
+    
+    // NOTE: This will wait until we can fit data into write buffer. Can cause a delay.
+    stream_.write(&chunk.data[0], chunk.data.size());
 }
 
-/* Use following command to disable outputs:
-angles_out off
-geo_out0 off
-*/
-bool SensorAnglesTextOutput::debug_cmd(HashedWord *input_words) {
-    if (*input_words++ == "angles_out"_hash) {
-        switch(*input_words++) {
-        case "off"_hash: debug_disable_output_ = true; return true;
-        case "on"_hash: debug_disable_output_ = false; return true;
-        }
-    }
-    return false;
-}
-
-
-GeometryTextOutput::GeometryTextOutput(Print &stream, uint32_t object_idx)
-    : stream_(&stream)
-    , object_idx_(object_idx)
-    , debug_disable_output_(false) {
-}
-
-void GeometryTextOutput::consume(const ObjectGeometry& f) {
-    if (debug_disable_output_)
-        return;
-
-    auto time = f.time.get_value(msec);
-    stream_->printf("GEO%d\t%u\t%.4f\t%.4f\t%.4f", object_idx_, time, f.xyz[0], f.xyz[1], f.xyz[2]);
-    if (f.q[0] != 1.0f) {
-        // Output quaternion if available.
-        stream_->printf("\t%.4f\t%.4f\t%.4f\t%.4f\n", f.q[0], f.q[1], f.q[2], f.q[3]);
-    } else {
-        stream_->println();
+void OutputNode::consume(const OutputCommand& cmd) {
+    switch (cmd.type) {
+        case OutputCommand::kMakeExclusive: exclusive_mode_ = true; exclusive_stream_idx_ = cmd.stream_idx; break;
+        case OutputCommand::kMakeNonExclusive: exclusive_mode_ = false; break;
     }
 }
 
-bool GeometryTextOutput::debug_cmd(HashedWord *input_words) {
-    if (*input_words == "geo_out#"_hash && input_words->idx == object_idx_) {
-        input_words++;
-        switch(*input_words++) {
-        case "off"_hash: debug_disable_output_ = true; return true;
-        case "on"_hash: debug_disable_output_ = false; return true;
+void OutputNode::do_work(Timestamp cur_time) {
+    // Accumulate bytes read from the stream_ in the chunk_.
+    while (!chunk_.data.full()) {
+        int c = stream_.read();
+        if (c < 0)
+            break;
+        chunk_.time = cur_time;  // Store the time of the last byte read.
+        chunk_.data.push(c);
+    }
+
+    // Send chunk if data is full or time from last byte is over given threshold.
+    constexpr TimeDelta max_time_from_last_byte(1, msec);
+    if (chunk_.data.full() || (!chunk_.data.empty() && cur_time - chunk_.time > max_time_from_last_byte)) {
+        chunk_.last_chunk = !chunk_.data.full();
+        chunk_.stream_idx = node_idx_;
+        produce(chunk_);
+        chunk_.data.clear();
+    }
+}
+
+
+// ======  UsbSerialOutputNode  ===============================================
+
+UsbSerialOutputNode::UsbSerialOutputNode(uint32_t idx, const OutputDef& def) 
+    : OutputNode(idx, def, Serial) {
+    assert(idx == 0);
+}
+
+
+// ======  HardwareSerialOutputNode  ==========================================
+
+HardwareSerialOutputNode::HardwareSerialOutputNode(uint32_t idx, const OutputDef& def) 
+    : OutputNode(idx, def, *hardware_serials[idx]) {
+    assert(idx > 0 && idx < num_outputs);
+    // TODO: check bitrate and serial format are valid.
+}
+
+void HardwareSerialOutputNode::start() {
+    reinterpret_cast<HardwareSerial *>(&stream_)->begin(def_.bitrate);
+}
+
+
+// ======  OutputDef I/O  =====================================================
+
+void OutputDef::print_def(uint32_t idx, Print &stream) {
+    if (idx == 0 && !active) {
+        stream.printf("usb_serial off\n");
+    } else if (idx != 0 && active) {
+        stream.printf("serial%d %d\n", idx, bitrate);
+    }
+}
+
+bool OutputDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream) {
+    if (idx == 0 || idx == (uint32_t)-1) {
+        // usb_serial: do nothing unless turned off.
+        active = (*input_words != "off"_hash);
+        return true;
+    } else if (idx < num_outputs) {
+        // hardware serial
+        active = true;
+        if (!input_words->as_uint32(&bitrate) || !(300 <= bitrate && bitrate <= 115200)) {
+            err_stream.printf("Invalid bitrate: %d. Needs to be in 300-115200 range.\n", bitrate);
+            return false;
         }
+        return true;            
     }
     return false;
 }

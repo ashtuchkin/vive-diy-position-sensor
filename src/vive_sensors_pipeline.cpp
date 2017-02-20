@@ -1,74 +1,112 @@
 #include "vive_sensors_pipeline.h"
 
-#include "settings.h"
-#include "pulse_processor.h"
-#include "input.h"
-#include "geometry.h"
-#include "outputs.h"
-#include "debug_node.h"
 #include "data_frame_decoder.h"
+#include "debug_node.h"
+#include "formatters.h"
+#include "geometry.h"
+#include "input.h"
+#include "outputs.h"
+#include "pulse_processor.h"
+#include "settings.h"
 
-#include <avr_emulation.h>
-#include <HardwareSerial.h>
-#include <usb_serial.h>
+#include <vector>
 
 
 std::unique_ptr<Pipeline> create_vive_sensor_pipeline(const PersistentSettings &settings) {
     // Create pipeline itself.
     auto pipeline = std::make_unique<Pipeline>();
 
-    // Append Debug node to make it possible to print what's going on.
-    auto debug_node = pipeline->emplace_front(std::make_unique<DebugNode>(pipeline.get(), Serial));
-
     // Create central element PulseProcessor.
-    auto pulse_processor = pipeline->emplace_back(std::make_unique<PulseProcessor>(settings.inputs().size()));
+    auto pulse_processor = pipeline->add_back(std::make_unique<PulseProcessor>(settings.inputs().size()));
 
     // Create input nodes as configured.
-    Vector<InputNode *, max_num_inputs> input_nodes{};
-    for (uint32_t input_idx = 0; input_idx < settings.inputs().size(); input_idx++) {
-        auto input_def = settings.inputs()[input_idx];
-        auto input_node = pipeline->emplace_front(InputNode::create(input_idx, input_def));
-        input_node->connect(pulse_processor);
-        input_nodes.push(input_node);
+    std::vector<InputNode *> inputs;
+    for (uint32_t i = 0; i < settings.inputs().size(); i++) {
+        auto &def = settings.inputs()[i];
+        auto node = pipeline->add_front(InputNode::create(i, def));
+        node->pipe(pulse_processor);
+        inputs.push_back(node);
     }    
 
     // Create geometry builders as configured.
-    Vector<GeometryBuilder *, max_num_inputs> geometry_builders{};
-    if (settings.geo_builders().size() > 0 && settings.base_stations().size() != 2)
-        throw_printf("2 base stations must be defined to use geometry builders.");
-    
-    for (uint32_t geo_idx = 0; geo_idx < settings.geo_builders().size(); geo_idx++) {
-        auto geometry_builder = pipeline->emplace_back(
-            std::make_unique<PointGeometryBuilder>(geo_idx, settings.geo_builders()[geo_idx], settings.base_stations())
-        );
-        pulse_processor->Producer<SensorAnglesFrame>::connect(geometry_builder);
-        geometry_builders.push(geometry_builder);
+    std::vector<GeometryBuilder *> geometry_builders;
+    for (uint32_t i = 0; i < settings.geo_builders().size(); i++) {
+        auto &def = settings.geo_builders()[i];
+        auto node = pipeline->add_back(std::make_unique<PointGeometryBuilder>(i, def, settings.base_stations()));
+        pulse_processor->Producer<SensorAnglesFrame>::pipe(node);
+        geometry_builders.push_back(node);
     }
 
     // Create Data Frame Decoders for all defined base stations.
-    for (uint32_t base_idx = 0; base_idx < settings.base_stations().size(); base_idx++) {
-        auto dataframe_decoder = pipeline->emplace_back(std::make_unique<DataFrameDecoder>(base_idx));
-        pulse_processor->Producer<DataFrameBit>::connect(dataframe_decoder);
-    }        
+    for (uint32_t i = 0; i < settings.base_stations().size(); i++) {
+        auto node = pipeline->add_back(std::make_unique<DataFrameDecoder>(i));
+        pulse_processor->Producer<DataFrameBit>::pipe(node);
+    }
 
-    // Output Nodes
-    // auto sensor_angles_output = pipeline->emplace_back(
-    //          std::make_unique<SensorAnglesTextOutput>(debug_node->stream()));
-    // pulse_processor->Producer<SensorAnglesFrame>::connect(sensor_angles_output);
+    // Create Output Nodes
+    std::vector<std::unique_ptr<OutputNode>> output_nodes(num_outputs);
+    for (uint32_t i = 0; i < settings.outputs().size(); i++) {
+        auto &def = settings.outputs()[i];
+        if (def.active) {
+            output_nodes[i] = OutputNode::create(i, def);
+            // NOTE: We defer adding node to the pipeline until after formatter nodes.
+        }
+    }
 
-    if (geometry_builders.size() > 0) {
-        auto geometry_builder = geometry_builders[0];
-        Serial1.begin(57600);
+    // Create Formatter Nodes
+    for (uint32_t i = 0; i < settings.formatters().size(); i++) {
+        auto &def = settings.formatters()[i];
+        FormatterNode *formatter;
+        switch (def.formatter_type) {
+            case kFormatAngles: {
+                auto node = pipeline->add_back(std::make_unique<SensorAnglesTextFormatter>(i, def));
+                pulse_processor->Producer<SensorAnglesFrame>::pipe(node);
+                formatter = node;
+                break;
+            }
+            // TODO: case kFormatDataFrame:
+            case kFormatGeometry: {
+                if (def.input_idx >= geometry_builders.size())
+                    throw_printf("Geometry builder g%d not found.", def.input_idx);
+                Producer<ObjectGeometry> *geometry_source = geometry_builders[def.input_idx];
 
-        // TODO: Make configurable.
-        auto coord_converter = pipeline->emplace_back(CoordinateSystemConverter::NED(110.f));
-        geometry_builder->connect(coord_converter);
+                // Convert coordinate system if needed.
+                if (auto coord_conv = CoordinateSystemConverter::create(def.coord_sys_type, def.coord_sys_params)) {
+                    auto node = pipeline->add_back(std::move(coord_conv));
+                    geometry_source->pipe(node); 
+                    geometry_source = node;
+                }
 
-        auto mavlink_output = pipeline->emplace_back(std::make_unique<MavlinkGeometryOutput>(Serial1));
-        coord_converter->connect(mavlink_output);
+                // Instantiate the concrete subtype of a geometry formatter.
+                auto node = pipeline->add_back(GeometryFormatter::create(i, def));
+                geometry_source->pipe(node); 
+                formatter = node;
+                break;
+            }
+            default: 
+                throw_printf("Unknown formatter type: %d", def.formatter_type);
+        }
 
-        auto text_output = pipeline->emplace_back(std::make_unique<GeometryTextOutput>(debug_node->stream(), 0));
-        geometry_builder->connect(text_output);
+        // pipe formatter to the output.
+        if (def.output_idx < output_nodes.size() && output_nodes[def.output_idx])
+            formatter->pipe(output_nodes[def.output_idx].get());
+        else
+            throw_printf("Uninitialized output %d given for stream %d", def.output_idx, i);
+    }
+
+    // Add Output Nodes to pipeline. It's preferable to do it last to keep the order of execution straight.
+    std::vector<OutputNode *> outputs(num_outputs);
+    for (uint32_t i = 0; i < output_nodes.size(); i++)
+        if (output_nodes[i])
+            outputs[i] = pipeline->add_back(std::move(output_nodes[i]));
+
+    // Append Debug node to make it possible to print what's going on.
+    // TODO: Make it configurable which output to pipe to.
+    if (OutputNode *debug_output = outputs[0]) {
+        auto debug_node = pipeline->add_back(std::make_unique<DebugNode>(pipeline.get()));
+        debug_node->Producer<DataChunk>::pipe(debug_output);
+        debug_node->Producer<OutputCommand>::pipe(debug_output);
+        debug_output->pipe(debug_node);
     }
 
     return pipeline;

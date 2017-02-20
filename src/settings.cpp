@@ -8,34 +8,37 @@
 #include <Stream.h>
 #include <kinetis.h>
 
-constexpr uint32_t current_settings_version = 0xbabe0002;
+constexpr uint32_t current_settings_version = 0xbabe0000 + sizeof(PersistentSettings);
 constexpr uint32_t *eeprom_addr = 0;
 /* Example settings
-reset
-i0 pin 12 positive
-b0 origin -1.528180 2.433750 -1.969390 matrix -0.841840 0.332160 -0.425400 -0.046900 0.740190 0.670760 0.537680 0.584630 -0.607540
-b1 origin 1.718700 2.543170 0.725060 matrix 0.458350 -0.649590 0.606590 0.028970 0.693060 0.720300 -0.888300 -0.312580 0.336480
+# Comments are prepended by '#'
+reset  # Reset all settings to clean state
+sensor0 pin 12 positive
+base0 origin -1.528180 2.433750 -1.969390 matrix -0.841840 0.332160 -0.425400 -0.046900 0.740190 0.670760 0.537680 0.584630 -0.607540
+base1 origin 1.718700 2.543170 0.725060 matrix 0.458350 -0.649590 0.606590 0.028970 0.693060 0.720300 -0.888300 -0.312580 0.336480
+object0 sensor0
+serial1 57600
+stream0 mavlink object0 ned 110 > serial1
+stream1 angles > usb_serial
+stream2 position object0 > usb_serial
 */
 
 PersistentSettings settings;
 
-PersistentSettings::PersistentSettings() 
-    : is_configured_(false)
-    , inputs_{}
-    , base_stations_{}
-    , geo_builders_{} {
+PersistentSettings::PersistentSettings() {
+    reset();
     read_from_eeprom();
 }
 
-void PersistentSettings::read_from_eeprom() {
+bool PersistentSettings::read_from_eeprom() {
     uint32_t eeprom_version = eeprom_read_dword(eeprom_addr);
     if (eeprom_version == current_settings_version) {
         // Normal initialization.
         eeprom_read_block(this, eeprom_addr + 4, sizeof(*this));
-    } else {
-        // Unknown version: initialize with zeros.
-        memset(this, 0, sizeof(*this));
-    }
+        return true;
+    } 
+    // Unknown version.
+    return false;
 }
 
 void PersistentSettings::write_to_eeprom() {
@@ -49,6 +52,14 @@ void PersistentSettings::restart_in_configuration_mode() {
     SCB_AIRCR = 0x5FA0004; // Restart Teensy.
 }
 
+// Initialize settings.
+void PersistentSettings::reset() {
+    memset(this, 0, sizeof(*this));
+
+    // Defaults.
+    outputs_.set_size(num_outputs);
+    outputs_[0].active = true;
+}
 
 bool PersistentSettings::validate_setup(Print &error_stream) {
     try {
@@ -57,10 +68,10 @@ bool PersistentSettings::validate_setup(Print &error_stream) {
         return true;
     }
     catch (const std::exception& e) { // This included bad_alloc, runtime_exception etc.
-        error_stream.printf("Validation error: %s", e.what());
+        error_stream.printf("Validation error: %s\n", e.what());
     }
     catch (...) {
-        error_stream.printf("Unknown validation error.");
+        error_stream.printf("Unknown validation error.\n");
     }
     return false;
 }
@@ -88,16 +99,20 @@ void PersistentSettings::set_value(Vector<T, arr_len> &arr, uint32_t idx, Hashed
             }
         }
     } else
-        stream.printf("Index too large. Next available index: i%d.\n", arr.size());
+        stream.printf("Index too large. Next available index: %d.\n", arr.size());
 }
 
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wstack-usage=512"  // Allow slightly higher stack usage for this function.
+
 void PersistentSettings::initialize_from_user_input(Stream &stream) {
+    Vector<char, max_input_str_len> input_buf{};
     while (true) {
         stream.print("config> ");
         char *input_cmd = nullptr;
         while (!input_cmd) {
-            input_cmd = read_line(stream);
+            input_cmd = read_line(stream, &input_buf);
 
             set_led_state(kConfigMode);
             update_led_pattern(Timestamp::cur_time());
@@ -120,28 +135,44 @@ void PersistentSettings::initialize_from_user_input(Stream &stream) {
                 base_stations_[i].print_def(i, stream);
             for (uint32_t i = 0; i < geo_builders_.size(); i++)
                 geo_builders_[i].print_def(i, stream);
+            for (uint32_t i = 0; i < outputs_.size(); i++)
+                outputs_[i].print_def(i, stream);
+            for (uint32_t i = 0; i < formatters_.size(); i++)
+                formatters_[i].print_def(i, stream);
             break;
         
-        case "i#"_hash:
+        case "sensor#"_hash:
             set_value(inputs_, idx, input_words, stream);
             break;
         
-        case "b#"_hash:
+        case "base#"_hash:
             set_value(base_stations_, idx, input_words, stream);
             break;
 
-        case "g#"_hash:
+        case "object#"_hash:
             set_value(geo_builders_, idx, input_words, stream);
+            break;
+        
+        case "stream#"_hash:
+            set_value(formatters_, idx, input_words, stream);
+            break;
+
+        case "usb_serial"_hash:
+        case "serial#"_hash:
+            if (idx == (uint32_t)-1) idx = 0;
+            set_value(outputs_, idx, input_words, stream);
+            break;
         
         case "reset"_hash:
-            inputs_.clear();
-            base_stations_.clear();
+            reset();
             stream.printf("Reset successful.\n");
             break;
 
         case "reload"_hash:
-            read_from_eeprom();
-            stream.printf("Loaded previous configuration from EEPROM.\n");
+            if (read_from_eeprom())
+                stream.printf("Loaded previous configuration from EEPROM.\n");
+            else
+                stream.printf("No valid configuration found in EEPROM.\n");
             break;
 
         case "write"_hash:
@@ -165,7 +196,5 @@ void PersistentSettings::initialize_from_user_input(Stream &stream) {
         }
     }
 }
-
-
-
+#pragma GCC diagnostic pop
 

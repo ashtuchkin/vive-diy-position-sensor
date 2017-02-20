@@ -18,8 +18,9 @@ GeometryBuilder::GeometryBuilder(uint32_t idx, const GeometryBuilderDef &geo_def
     , base_stations_(base_stations)
     , def_(geo_def) {
     assert(idx < max_num_inputs);
-    assert(base_stations.size() == 2);
     assert(geo_def.sensors.size() > 0);
+    if (base_stations.size() != 2)
+        throw_printf("2 base stations must be defined to use geometry builders.");
 }
 
 
@@ -59,15 +60,15 @@ void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
     //Serial.printf("Ray2: %f %f %f\n", ray2[0], ray2[1], ray2[2]);
 
 
-    ObjectGeometry geo = {.time = f.time, .xyz = {}, .q = {1.f, 0.f, 0.f, 0.f}};
+    ObjectGeometry geo = {.time = f.time, .pos = {}, .q = {1.f, 0.f, 0.f, 0.f}};
 
     float dist;
     intersect_lines(base_stations_[0].origin, ray1, 
-                    base_stations_[1].origin, ray2, &geo.xyz, &dist);
+                    base_stations_[1].origin, ray2, &geo.pos, &dist);
 
     last_success_ = f.time;
     for (int i = 0; i < vec3d_size; i++)
-        geo.xyz[i] -= sens_def.pos[i];
+        geo.pos[i] -= sens_def.pos[i];
     
     produce(geo);
 }
@@ -167,8 +168,16 @@ CoordinateSystemConverter::CoordinateSystemConverter(float mat[9]) {
     memcpy(mat_, mat, sizeof(mat_));
 }
 
-std::unique_ptr<CoordinateSystemConverter> CoordinateSystemConverter::NED(float angle_in_degrees) {
-    float ne_angle = angle_in_degrees / 360.0f * (float)M_PI;
+std::unique_ptr<CoordinateSystemConverter> CoordinateSystemConverter::create(CoordSysType type, const CoordSysDef& def) {
+    switch (type) {
+        case kDefaultCoordSys: return nullptr; // Do nothing.
+        case kNED: return CoordinateSystemConverter::NED(def.ned);
+        default: throw_printf("Unknown coord sys type: %d", type);
+    }
+}
+
+std::unique_ptr<CoordinateSystemConverter> CoordinateSystemConverter::NED(const NEDCoordDef &def) {
+    float ne_angle = def.north_angle / 360.0f * (float)M_PI;
     float mat[9] = {
         // Convert Y up -> Z down; then rotate XY around Z clockwise and inverse X & Y
         -cosf(ne_angle), 0.0f,  sinf(ne_angle),
@@ -182,8 +191,8 @@ void CoordinateSystemConverter::consume(const ObjectGeometry& geo) {
     ObjectGeometry res(geo);
 
     // Convert position
-    arm_matrix_instance_f32 src_mat = {3, 1, const_cast<float*>(geo.xyz)};
-    arm_matrix_instance_f32 dest_mat = {3, 1, res.xyz};
+    arm_matrix_instance_f32 src_mat = {3, 1, const_cast<float*>(geo.pos)};
+    arm_matrix_instance_f32 dest_mat = {3, 1, res.pos};
     arm_matrix_instance_f32 rotation_mat = {3, 3, mat_};
     arm_mat_mult_f32(&rotation_mat, &src_mat, &dest_mat);
 
@@ -205,10 +214,10 @@ void CoordinateSystemConverter::debug_print(Print& stream) {
 
 
 // ======= BaseStationGeometryDef I/O ===========================================
-// Format: b<idx> origin <x> <y> <z> matrix <9x floats>
+// Format: base<idx> origin <x> <y> <z> matrix <9x floats>
 
 void BaseStationGeometryDef::print_def(uint32_t idx, Print &stream) {
-    stream.printf("b%d origin", idx);
+    stream.printf("base%d origin", idx);
     for (int j = 0; j < 3; j++)
         stream.printf(" %f", origin[j]);
     stream.printf(" matrix");
@@ -234,13 +243,13 @@ bool BaseStationGeometryDef::parse_def(uint32_t idx, HashedWord *input_words, Pr
 }
 
 // =======  GeometryBuilderDef I/O  ===========================================
-// Format: g<idx> [ i<idx> <x> <y> <z> ]+
+// Format: object<idx> [ sensor<idx> <x> <y> <z> ]+
 
 void GeometryBuilderDef::print_def(uint32_t idx, Print &stream) {
-    stream.printf("g%d", idx);
+    stream.printf("object%d", idx);
     for (uint32_t i = 0; i < sensors.size(); i++) {
         const SensorLocalGeometry &sensor = sensors[i];
-        stream.printf(" i%d %.4f %.4f %.4f", sensor.input_idx, sensor.pos[0], sensor.pos[1], sensor.pos[2]);
+        stream.printf(" sensor%d %.4f %.4f %.4f", sensor.input_idx, sensor.pos[0], sensor.pos[1], sensor.pos[2]);
     }
     stream.println();
 }
@@ -249,9 +258,10 @@ bool GeometryBuilderDef::parse_def(uint32_t idx, HashedWord *input_words, Print 
     sensors.clear();
     while (*input_words) {
         SensorLocalGeometry sensor;
-        if (*input_words != "i#"_hash || !input_words->as_uint32(&sensor.input_idx) || sensor.input_idx >= max_num_inputs ) {
-            err_stream.printf("Input number (i<num>) required for geometry builder %d\n", idx); return false;
+        if (*input_words != "sensor#"_hash) {
+            err_stream.printf("Sensor number (sensor<num>) required for object %d\n", idx); return false;
         }
+        sensor.input_idx = input_words->idx;
         input_words++;
         if (!*input_words && sensors.size() == 0) { // Allow skipping coordinates for one-sensor geometry builder.
             sensor.pos[0] = sensor.pos[1] = sensor.pos[2] = 0.f;
@@ -260,19 +270,19 @@ bool GeometryBuilderDef::parse_def(uint32_t idx, HashedWord *input_words, Print 
         }
         for (int i = 0; i < vec3d_size; i++) {
             if (!input_words++->as_float(&sensor.pos[i])) {
-                err_stream.printf("Invalid position coordinate in geometry builder %d\n", idx); return false;
+                err_stream.printf("Invalid position coordinate in object %d\n", idx); return false;
             }
         }
         if (sensors.full()) {
-            err_stream.printf("Too many inputs for geometry builder %d. Up to %d allowed.\n", idx, sensors.max_size()); return false;
+            err_stream.printf("Too many inputs for object %d. Up to %d allowed.\n", idx, sensors.max_size()); return false;
         }
         sensors.push(sensor);
     }
     if (sensors.size() == 0) {
-        err_stream.printf("At least one sensor input should be defined for geometry builder %d\n", idx); return false;
+        err_stream.printf("At least one sensor input should be defined for object %d\n", idx); return false;
     }
     if (sensors.size() > 1) {
-        err_stream.printf("Multi-sensor geometry builder is currently not supported.\n"); return false;
+        err_stream.printf("Multi-sensor objects are currently not supported.\n"); return false;
     }
     return true;
 }

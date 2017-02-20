@@ -1,51 +1,30 @@
 #pragma once
 #include "primitives/workers.h"
-#include <memory>
-#include <Print.h>
-
-class Stream;
-class DetachablePrint;
+#include "outputs.h"
+#include "print_helpers.h"
 
 // This node calls debug_cmd and debug_print for all pipeline nodes periodically,
 // provides some other debug facilities and blinks LED.
-class DebugNode : public WorkerNode {
+class DebugNode 
+    : public WorkerNode
+    , public DataChunkLineSplitter
+    , public Producer<DataChunk>
+    , public Producer<OutputCommand> {
 public:
-    DebugNode(Pipeline *pipeline, Stream &debug_stream);
+    DebugNode(Pipeline *pipeline);
 
+    virtual void consume_line(char *line, Timestamp time);
     virtual void do_work(Timestamp cur_time);
     virtual bool debug_cmd(HashedWord *input_words);
     virtual void debug_print(Print &stream);
 
-    // Detachable print stream - used to stop output to usb serial when debug mode is on.
-    Print &stream();
-
-    virtual ~DebugNode() = default;
 private:
+    void set_output_attached(bool attached);
+
     Pipeline *pipeline_;
-    Stream &debug_stream_;
-    std::unique_ptr<DetachablePrint> detachable_print_;
-    Timestamp debug_print_period_, blinker_period_;
+    Timestamp continuous_print_period_;
     uint32_t continuous_debug_print_;
+    uint32_t stream_idx_;
+    bool output_attached_;
     bool print_debug_memory_;
-};
-
-// Detachable Print class is used to stop outputting geometry data when debug mode is on.
-class DetachablePrint : public Print {
-public:
-    DetachablePrint(Print &source) : source_(source), attached_(true) {}
-    void set_attached(bool attached) { attached_ = attached; }
-    bool is_attached() const { return attached_; }
-
-    // Main printing methods.
-	virtual size_t write(uint8_t b) {
-        return attached_ ? source_.write(b) : 0;
-    }
-	virtual size_t write(const uint8_t *buffer, size_t size) {
-        return attached_ ? source_.write(buffer, size) : 0;
-    }
-
-    virtual ~DetachablePrint() = default;
-private:
-    Print &source_;
-    bool attached_;
 };
