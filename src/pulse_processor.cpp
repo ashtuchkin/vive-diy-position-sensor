@@ -140,10 +140,11 @@ void PulseProcessor::process_cycle_fix(Timestamp cur_time) {
         // From (potentially several) short pulses for the same input, we choose the longest one.
         Pulse *short_pulses[max_num_inputs] = {};
         TimeDelta short_pulse_timings[max_num_inputs] = {};
+        TimeDelta base_station_delta = long_pulse_starts[cycle_phase >> 1];
         for (uint32_t i = 0; i < cycle_short_pulses_.size(); i++) {
             Pulse *p = &cycle_short_pulses_[i];
             uint32_t input_idx = p->input_idx;
-            TimeDelta pulse_timing = p->start_time - cycle_start_time_ + p->pulse_len / 2;
+            TimeDelta pulse_timing = p->start_time - cycle_start_time_ + p->pulse_len / 2 - base_station_delta;
             if (short_pulse_min_time < pulse_timing && pulse_timing < short_pulse_max_time)
                 if (!short_pulses[input_idx] || short_pulses[input_idx]->pulse_len < p->pulse_len) {
                     short_pulses[input_idx] = p;

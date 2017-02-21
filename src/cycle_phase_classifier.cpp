@@ -24,7 +24,7 @@ CyclePhaseClassifier::CyclePhaseClassifier()
 void CyclePhaseClassifier::process_pulse_lengths(uint32_t cycle_idx, const TimeDelta (&pulse_lens)[num_base_stations]) {
     int cur_phase_id = -1;
     if (pulse_lens[0] > TimeDelta(0, usec) && pulse_lens[1] > TimeDelta(0, usec)) {
-        int cur_more = pulse_lens[0] < pulse_lens[1];
+        int cur_more = pulse_lens[0] > pulse_lens[1];
         if (cycle_idx == prev_full_cycle_idx_ + 1) {
             // To get current phase, we use simple fact that in phases 0 and 1, first pulse is shorter than the second,
             // and in phases 2, 3 it is longer. This allows us to estimate current phase using comparison between 
@@ -67,7 +67,7 @@ DataFrameBitPair CyclePhaseClassifier::get_data_bits(uint32_t cycle_idx, const T
     if (phase_id >= 0) {
         for (int b = 0; b < num_base_stations; b++) 
             if (pulse_lens[b] > TimeDelta(0, usec)) {
-                bool skip = (phase_id >> 1) == b;
+                bool skip = (phase_id >> 1) != b;
                 bool axis = phase_id & 0x1;
 
                 // Get the middle value of pulse width between bits 0 and 1.
@@ -122,7 +122,7 @@ bool CyclePhaseClassifier::debug_cmd(HashedWord *input_words) {
 }
 void CyclePhaseClassifier::debug_print(Print &stream) {
     if (debug_print_state_) {
-        stream.printf("CyclePhaseClassifier: fix %d, phase %d, pulse_len %f, history 0x%x, avg error %.1f us\n", 
+        stream.printf("CyclePhaseClassifier: fix %d, phase %d, pulse_base_len %f, history 0x%x, avg error %.1f us\n", 
             fix_level_, phase_shift_, pulse_base_len_, phase_history_, average_error_);
     }
 }
