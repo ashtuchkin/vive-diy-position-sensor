@@ -9,7 +9,7 @@
 
 
 bool intersect_lines(const vec3d &orig1, const vec3d &vec1, const vec3d &orig2, const vec3d &vec2, vec3d *res, float *dist);
-void calc_ray_vec(const BaseStationGeometryDef &bs, float angle1, float angle2, vec3d &res);
+void calc_ray_vec(const BaseStationGeometryDef &bs, float angle1, float angle2, vec3d &ray, vec3d &origin);
 
 
 GeometryBuilder::GeometryBuilder(uint32_t idx, const GeometryBuilderDef &geo_def,
@@ -52,12 +52,11 @@ void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
             pos_.fix_level = (max_stale < num_cycle_phases) 
                                 ? FixLevel::kFullFix : FixLevel::kStaleFix;
 
-            vec3d ray1{}, ray2{};
-            calc_ray_vec(base_stations_[0], sens.angles[0], sens.angles[1], ray1);
-            calc_ray_vec(base_stations_[1], sens.angles[2], sens.angles[3], ray2);
-
-            intersect_lines(base_stations_[0].origin, ray1, 
-                            base_stations_[1].origin, ray2, &pos_.pos, &pos_.pos_delta);
+            vec3d ray1, ray2, origin1, origin2;
+            calc_ray_vec(base_stations_[0], sens.angles[0], sens.angles[1], ray1, origin1);
+            calc_ray_vec(base_stations_[1], sens.angles[2], sens.angles[3], ray2, origin2);
+            
+            intersect_lines(origin1, ray1, origin2, ray2, &pos_.pos, &pos_.pos_delta);
 
             // Translate object position depending on the position of sensor relative to object.
             for (int i = 0; i < vec3d_size; i++)
@@ -103,7 +102,7 @@ float vec_length(vec3d &vec) {
     return res;
 }
 
-void calc_ray_vec(const BaseStationGeometryDef &bs, float angle1, float angle2, vec3d &res) {
+void calc_ray_vec(const BaseStationGeometryDef &bs, float angle1, float angle2, vec3d &res, vec3d &origin) {
     vec3d a = {arm_cos_f32(angle1), 0, -arm_sin_f32(angle1)};  // Normal vector to X plane
     vec3d b = {0, arm_cos_f32(angle2), arm_sin_f32(angle2)};   // Normal vector to Y plane
 
@@ -115,8 +114,15 @@ void calc_ray_vec(const BaseStationGeometryDef &bs, float angle1, float angle2, 
     arm_matrix_instance_f32 source_rotation_matrix = {3, 3, const_cast<float*>(bs.mat)};
     arm_matrix_instance_f32 ray_vec = {3, 1, ray};
     arm_matrix_instance_f32 ray_rotated_vec = {3, 1, res};
-
     arm_mat_mult_f32(&source_rotation_matrix, &ray_vec, &ray_rotated_vec);
+
+    // TODO: Make geometry adjustments within base station.
+    vec3d rotated_origin_delta = {};
+    //vec3d base_origin_delta = {-0.025f, -0.025f, 0.f};  // Rotors are slightly off center in base station.
+    // arm_matrix_instance_f32 origin_vec = {3, 1, base_origin_delta};
+    // arm_matrix_instance_f32 origin_rotated_vec = {3, 1, rotated_origin_delta};
+    // arm_mat_mult_f32(&source_rotation_matrix, &origin_vec, &origin_rotated_vec);
+    arm_add_f32(const_cast<vec3d&>(bs.origin), rotated_origin_delta, origin, vec3d_size);
 }
 
 
