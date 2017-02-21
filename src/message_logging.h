@@ -5,6 +5,7 @@
 #include "primitives/producer_consumer.h"
 #include "primitives/circular_buffer.h"
 #include "primitives/hash.h"
+#include "data_frame_decoder.h"
 #include <Arduino.h>
 
 // This function is used to print messages used in Producer-Consumer pattern.
@@ -42,9 +43,22 @@ inline void print_value<DataFrameBit>(Print &stream, const DataFrameBit& val) {
 
 template<>
 inline void print_value<DataFrame>(Print &stream, const DataFrame& frame) {
-    stream.printf("\n%dms: base %d, data ", frame.time.get_value(msec), frame.base_station_idx);
-    for (uint32_t i = 0; i < frame.bytes.size(); i++)
-        stream.printf("%02X ", frame.bytes[i]);
+    stream.printf("\n%dms: ", frame.time.get_value(msec));
+    const DecodedDataFrame *df = reinterpret_cast<const DecodedDataFrame *>(&frame.bytes[0]);
+    if (frame.bytes.size() == 33 && df->protocol == DecodedDataFrame::cur_protocol) {
+        stream.printf("fw %u, id 0x%08x, desync %u, hw %u, accel [%d, %d, %d], mode %c, faults %u ", 
+            (uint32_t)df->fw_version, df->id, (uint32_t)df->sys_unlock_count, (uint32_t)df->hw_version, 
+            (int32_t)df->accel_dir[0], (int32_t)df->accel_dir[1], (int32_t)df->accel_dir[2],
+            df->mode_current+'A', (uint32_t)df->sys_faults);
+        for (uint32_t i = 0; i < num_base_stations; i++)
+            stream.printf("\n    fcal%d: phase %.4f, tilt %.4f, curve %.4f, gibphase %.4f, gibmag %.4f ", 
+                i, (float)df->fcal_phase[i], (float)df->fcal_tilt[i], (float)df->fcal_curve[i], (float)df->fcal_gibphase[i], (float)df->fcal_gibmag[i]);
+    } else {
+        // Unknown protocol.
+        stream.printf("bytes ");
+        for (uint32_t i = 0; i < frame.bytes.size(); i++)
+            stream.printf("%02X ", frame.bytes[i]);
+    }
 }
 
 template<>

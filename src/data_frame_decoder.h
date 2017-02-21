@@ -1,12 +1,32 @@
+#pragma once
 #include "primitives/workers.h"
 #include "primitives/producer_consumer.h"
 #include "common.h"
 
-// Data Frame Decoder for one base station.
 // See data frame description here: 
 // https://github.com/nairol/LighthouseRedox/blob/master/docs/Light%20Emissions.md#ootx-frame
 // https://github.com/nairol/LighthouseRedox/blob/master/docs/Base%20Station.md#base-station-info-block
-// Frame is 33 bytes long. NOTE: If we would want to decode float16, we can use ARM specific __fp16 type.
+struct DecodedDataFrame {
+    // The current protocol version is 6. For older protocol versions the data structure might look different.
+    static constexpr uint32_t cur_protocol = 6;
+
+    uint8_t protocol : 6;       // Protocol version (bits 5..0).
+    uint16_t fw_version : 10;   // Firmware version (bits 15..6).
+    uint32_t id;                // Unique identifier of the base station (CRC32 of the 128-bit MCU UID)
+    __fp16 fcal_phase[2];       // "phase" - probably phase difference between real angle and measured.
+    __fp16 fcal_tilt[2];        // "tilt" - probably rotation of laser plane
+    uint8_t sys_unlock_count;   // Lowest 8 bits of the rotor desynchronization counter
+    uint8_t hw_version;         // Hardware version
+    __fp16 fcal_curve[2];       // "curve"
+    int8_t accel_dir[3];        // Orientation vector, scaled so that largest component is always +-127.
+    __fp16 fcal_gibphase[2];    // "gibbous phase" (normalized angle)
+    __fp16 fcal_gibmag[2];      // "gibbous magnitude"
+    uint8_t mode_current;       // Currently selected mode (default: 0=A, 1=B, 2=C)
+    uint8_t sys_faults;         // "fault detect flags" (should be 0)
+} __attribute__((packed));
+static_assert(sizeof(DecodedDataFrame) == 33, "DataFrame should be 33 bytes long. Check it's byte-level packed.");
+
+// Data Frame Decoder for one base station.
 // TODO: Check CRC32.
 class DataFrameDecoder
     : public WorkerNode

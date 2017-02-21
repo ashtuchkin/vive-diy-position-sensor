@@ -1,20 +1,19 @@
-
 ### TODO
 
- * [ ] Re-check all last-success timestamps (LongTimestamp) - they don't survive the overflow.
- * [ ] Add FTM input
  * [ ] Rework docs.
  * [ ] Assertion/termination system.
+ * [ ] Add FTM input
 
 Later:
  * [ ] Create multi-sensor geometry processing unit
  * [ ] Increase precision by keeping an estimate of cycle and removing uncertainty of long pulses.
+ * [ ] Re-check all last-success timestamps (LongTimestamp) - they don't survive the overflow.
  * [ ] Remove Timestamp in favor of std::chrono::duration (http://en.cppreference.com/w/cpp/chrono/duration)
  * [ ] Remove Vector in favor of std::vector.
  * [ ] Rewrite _sbrk() to not allow heap to go to into stack.
  * [ ] Add unit testing
  * [ ] Add polling mode for outputs
- * [ ] DataFrame: Check CRC32; Decode values.
+ * [ ] DataFrame: Check CRC32.
  * [ ] Split PersistentSettings to Settings and Persistent<>
  * [ ] Get rid of Teensy's Print. Use vsnprintf instead. debug_print, print_def, parse_def, DataChunkPrint
  * [ ] (Maybe) Introduce EASTL library and all its niceties like fixed_vector. Tried it and it looks problematic (platform not supported + threading issues).
@@ -25,6 +24,16 @@ https://google.github.io/styleguide/cppguide.html
 ### Git submodule management
  * Update submodules to latest on branches/tags: `git submodule update --remote`
  * When changing .gitmodules, do `git submodule sync`
+
+### Example Base Station Data Frames
+
+base0: fw 436, id 0x4242089a, desync 16, hw 9, accel [-4, 126, 127], mode B, faults 0 
+    fcal0: phase 0.0500, tilt -0.0091, curve -0.0038, gibphase 1.8633, gibmag 0.0113 
+    fcal1: phase 0.0241, tilt 0.0008, curve -0.0015, gibphase -0.7920, gibmag -0.0112 (2 total)
+base1: fw 436, id 0x2f855022, desync 53, hw 9, accel [0, 118, 127], mode C, faults 0 
+    fcal0: phase 0.0284, tilt -0.0036, curve -0.0010, gibphase 2.1758, gibmag 0.0086 
+    fcal1: phase 0.0487, tilt -0.0080, curve -0.0023, gibphase 0.4695, gibmag -0.0086 (1 total)
+
 
 ### GCC Headers search for #include <..>
 
