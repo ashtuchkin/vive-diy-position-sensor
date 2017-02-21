@@ -2,9 +2,9 @@
 #include "primitives/workers.h"
 #include "primitives/producer_consumer.h"
 #include "primitives/circular_buffer.h"
-#include "common.h"
+#include "messages.h"
 
-// We can used different Teensy modules to measure pulse timing, each with different pros and cons.
+// We can use different Teensy hardware features to measure pulse timing, each with different pros and cons.
 // Look into each input type's header for details.
 enum class InputType {
     kCMP = 0,  // Comparator
@@ -13,9 +13,7 @@ enum class InputType {
 };
 constexpr int kInputTypeCount = 3;
 
-class Print;
-class HashedWord;
-
+// Stored definition of an InputNode.
 struct InputDef {
     uint32_t pin;  // Teensy PIN number
     bool pulse_polarity; // true = Positive, false = Negative.
@@ -27,9 +25,7 @@ struct InputDef {
 };
 
 
-constexpr int pulses_buffer_len = 32;
-typedef CircularBuffer<Pulse, pulses_buffer_len> PulseCircularBuffer;
-
+// Base class for input nodes. They all produce Pulse-s.
 class InputNode 
     : public WorkerNode
     , public Producer<Pulse> {
@@ -50,6 +46,7 @@ private:
     uint32_t input_idx_;
 
     // We keep the pulse buffer to move Pulse-s from irq context to main thread context.
-    PulseCircularBuffer pulses_buf_;
+    static constexpr int pulses_buffer_len = 32;
+    CircularBuffer<Pulse, pulses_buffer_len> pulses_buf_;
 };
  

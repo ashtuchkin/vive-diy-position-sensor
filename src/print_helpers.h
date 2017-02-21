@@ -1,11 +1,10 @@
 #pragma once
-#include "common.h"
 #include "primitives/producer_consumer.h"
 #include "primitives/timestamp.h"
-#include <algorithm>
+#include "messages.h"
 #include <Print.h>
 
-// Implement Print interface which sends DataChunks as a Producer.
+// Implements Print interface which sends DataChunks as a Producer.
 // Note, the data is buffered and the last chunk is sent either on flush(), newline (if not binary), 
 // or in destructor.
 class DataChunkPrint : public Print {

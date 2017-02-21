@@ -4,7 +4,7 @@
 
 // MurmurHash3 32 bit, derived from https://github.com/aappleby/smhasher
 // Both compile-time and runtime versions provided.
-// User literal version is also defined to allow "abc"_hash to return hash of "abc".
+// User literal version is also defined to allow "abc"_hash to be compiled to a hash of "abc".
 // One useful property of this hash is that hash("") == 0.
 
 constexpr uint32_t rotl32(uint32_t x, int8_t r) {

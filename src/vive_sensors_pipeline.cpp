@@ -11,8 +11,12 @@
 
 #include <vector>
 
-
+// Create Pipeline specialized for Vive Sensors, using provided configuration settings.
+// In this function we create and interconnect all needed WorkerNodes to make project work.
+// NOTE: This function will also be called for validation purposes, so no hardware changes should be made.
+// (move all hardware changes to start() methods)
 std::unique_ptr<Pipeline> create_vive_sensor_pipeline(const PersistentSettings &settings) {
+
     // Create pipeline itself.
     auto pipeline = std::make_unique<Pipeline>();
 

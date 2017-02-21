@@ -1,10 +1,6 @@
 #pragma once
-#include "common.h"
+#include "messages.h"
 #include "primitives/string_utils.h"
-class Print;
-
-// Reference to a pair of DataFrameBit-s
-typedef DataFrameBit (&DataFrameBitPair)[num_base_stations];
 
 // Given pairs of pulse lens from 2 base stations, this class determines the phase for current cycle
 // Phases are: 
@@ -24,6 +20,9 @@ public:
     // Get current cycle phase. -1 if phase is not known (no fix achieved).
     int get_phase(uint32_t cycle_idx);
     
+    // Reference to a pair of DataFrameBit-s
+    typedef DataFrameBit (&DataFrameBitPair)[num_base_stations];
+
     // Get updated data bits from the pulse lens for current cycle.
     // Both bits are always returned, but caller needs to make sure they were updated this cycle by
     // checking DataFrameBit.cycle_idx == cycle_idx.

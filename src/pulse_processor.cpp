@@ -123,7 +123,7 @@ void PulseProcessor::process_cycle_fix(Timestamp cur_time) {
 
         // If needed, get the data bits from pulse lengths and send them down the pipeline
         if (Producer<DataFrameBit>::has_consumers()) {
-            DataFrameBitPair bits = phase_classifier_.get_data_bits(cycle_idx_, pulse_lens);
+            CyclePhaseClassifier::DataFrameBitPair bits = phase_classifier_.get_data_bits(cycle_idx_, pulse_lens);
             for (int b = 0; b < num_base_stations; b++)
                 if (bits[b].cycle_idx == cycle_idx_) {
                     bits[b].time = cycle_start_time_;

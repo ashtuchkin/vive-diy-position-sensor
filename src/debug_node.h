@@ -1,6 +1,6 @@
 #pragma once
 #include "primitives/workers.h"
-#include "outputs.h"
+#include "primitives/producer_consumer.h"
 #include "print_helpers.h"
 
 // This node calls debug_cmd and debug_print for all pipeline nodes periodically,

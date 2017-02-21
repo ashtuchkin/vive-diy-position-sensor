@@ -2,11 +2,11 @@
 #include "primitives/workers.h"
 #include "primitives/producer_consumer.h"
 #include "primitives/vector.h"
-#include "common.h"
+#include "messages.h"
 #include "cycle_phase_classifier.h"
 
-// This node processes pulses from several sensors, tries to match them to cycle structure and
-// output matched set of angles.
+// This node processes Pulses from several sensors, tries to match them to cycle structure and
+// output matched set of angles (SensorAnglesFrame) and data bits (DataFrameBit).
 class PulseProcessor
     : public WorkerNode
     , public Consumer<Pulse>

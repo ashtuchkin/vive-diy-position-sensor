@@ -58,7 +58,7 @@ inline float CyclePhaseClassifier::expected_pulse_len(bool skip, bool data, bool
     return pulse_base_len_ + (skip << 2 | data << 1 | axis) * 10.416f;
 }
 
-DataFrameBitPair CyclePhaseClassifier::get_data_bits(uint32_t cycle_idx, const TimeDelta (&pulse_lens)[num_base_stations]) {
+CyclePhaseClassifier::DataFrameBitPair CyclePhaseClassifier::get_data_bits(uint32_t cycle_idx, const TimeDelta (&pulse_lens)[num_base_stations]) {
     // This is almost naive algorithm that tracks/adjusts just one variable, pulse_base_len_, with the assumption that
     // all pulses can be shorter/longer than ideal by the same amount.
     // We might need to introduce tracking of each phase mid_len if sensors are not linear enough.

@@ -1,11 +1,13 @@
 #pragma once
-#include "common.h"
+#include "messages.h"
 #include "input.h"
 #include "geometry.h"
 #include "formatters.h"
 #include "outputs.h"
 #include <type_traits>
 
+// This class provides configurability to our project. It reads/writes configuration data to EEPROM and provides
+// configuration command interface.
 class PersistentSettings {
 public:
     // Data accessors

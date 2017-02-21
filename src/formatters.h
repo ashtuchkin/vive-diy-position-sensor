@@ -1,7 +1,7 @@
 #pragma once
 #include "primitives/workers.h"
 #include "primitives/producer_consumer.h"
-#include "common.h"
+#include "messages.h"
 #include "geometry.h"
 
 enum class FormatterType {
@@ -44,7 +44,7 @@ protected:
     FormatterDef def_;
 };
 
-// Format sensor angles in a text form.
+// Format sensor angles to a text form.
 class SensorAnglesTextFormatter
     : public FormatterNode
     , public Consumer<SensorAnglesFrame> {

@@ -175,17 +175,17 @@ CoordinateSystemConverter::CoordinateSystemConverter(float mat[9]) {
 std::unique_ptr<CoordinateSystemConverter> CoordinateSystemConverter::create(CoordSysType type, const CoordSysDef& def) {
     switch (type) {
         case CoordSysType::kDefault: return nullptr; // Do nothing.
-        case CoordSysType::kNED: return CoordinateSystemConverter::NED(def.ned);
+        case CoordSysType::kNED: return CoordinateSystemConverter::NED(def);
         default: throw_printf("Unknown coord sys type: %d", type);
     }
 }
 
-std::unique_ptr<CoordinateSystemConverter> CoordinateSystemConverter::NED(const NEDCoordDef &def) {
-    float ne_angle = def.north_angle / 360.0f * (float)M_PI;
+std::unique_ptr<CoordinateSystemConverter> CoordinateSystemConverter::NED(const CoordSysDef &def) {
+    float ne_angle = def.ned.north_angle / 360.0f * (float)M_PI;
     float mat[9] = {
         // Convert Y up -> Z down; then rotate XY around Z clockwise and inverse X & Y
-        -cosf(ne_angle), 0.0f,  sinf(ne_angle),
-        -sinf(ne_angle), 0.0f, -cosf(ne_angle),
+        -arm_cos_f32(ne_angle), 0.0f,  arm_sin_f32(ne_angle),
+        -arm_sin_f32(ne_angle), 0.0f, -arm_cos_f32(ne_angle),
         0.0f,          -1.0f,            0.0f,
     };
     return std::make_unique<CoordinateSystemConverter>(mat);

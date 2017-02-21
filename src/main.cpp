@@ -8,7 +8,7 @@ extern "C" int main() {
         settings.initialize_from_user_input(Serial);
     }
 
-    // Create worker node pipeline from settings.
+    // Create worker nodes pipeline from settings.
     auto pipeline = create_vive_sensor_pipeline(settings);
 
     // Register & start input nodes' interrupts.

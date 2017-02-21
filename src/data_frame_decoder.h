@@ -1,7 +1,7 @@
 #pragma once
 #include "primitives/workers.h"
 #include "primitives/producer_consumer.h"
-#include "common.h"
+#include "messages.h"
 
 // See data frame description here: 
 // https://github.com/nairol/LighthouseRedox/blob/master/docs/Light%20Emissions.md#ootx-frame

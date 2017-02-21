@@ -4,6 +4,7 @@
 #include "../primitives/hash.h"
 
 class Stream;
+class Print;
 template<typename T, unsigned C> class Vector;
 
 // Input string length constants.

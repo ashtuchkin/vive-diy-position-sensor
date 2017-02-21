@@ -1,6 +1,6 @@
 #pragma once
 
-// Platform-specific constants
+// Platform-specific functions and constants.
 
 // Max stack size.
 // NOTE: Stack overflow is not checked for now. We do check heap from growing into stack, though.

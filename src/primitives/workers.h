@@ -4,8 +4,6 @@
 #include <list>
 #include <memory>
 
-class Print;
-
 // Simple worker node pattern. 
 // To create a worker node, inherit from this interface and override functions needed.
 class WorkerNode {

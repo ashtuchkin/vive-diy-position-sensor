@@ -4,6 +4,7 @@
 struct ComparatorPorts;
 struct ComparatorInputPin;
 
+// Input node using Teensy's comparator modules. See description in .cpp file.
 class InputCmpNode : public InputNode {
 public:
     InputCmpNode(uint32_t input_idx, const InputDef &def);

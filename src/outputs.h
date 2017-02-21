@@ -1,9 +1,11 @@
+// This file defines OutputNode-s. These are dumb IO Nodes reading and writing DataChunk-s to/from different
+// hardware streams.
 #pragma once
 #include "primitives/workers.h"
 #include "primitives/producer_consumer.h"
-#include "common.h"
+#include "messages.h"
 
-// usb serial + 3x hardware serials.
+// Currently supported: usb serial + 3x hardware serials.
 constexpr int num_outputs = 4;
 
 struct OutputDef {

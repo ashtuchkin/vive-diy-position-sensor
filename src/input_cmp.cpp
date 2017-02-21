@@ -14,7 +14,6 @@
 //
 #include "input_cmp.h"
 #include "settings.h"
-#include "common.h"
 #include <Arduino.h>
 
 constexpr int num_comparators = 3;  // Number of Comparator modules in Teensy.
