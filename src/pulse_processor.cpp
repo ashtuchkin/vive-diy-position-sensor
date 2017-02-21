@@ -6,8 +6,8 @@ constexpr TimeDelta min_short_pulse_len(2, usec);
 constexpr TimeDelta min_long_pulse_len(40, usec);
 constexpr TimeDelta max_long_pulse_len(300, usec);
 
-constexpr TimeDelta long_pulse_starts_accepted_range(20, usec);
-constexpr TimeDelta long_pulse_starts[num_base_stations] = {TimeDelta(0, usec), TimeDelta(400, usec)};
+constexpr TimeDelta long_pulse_starts_accepted_range(30, usec);
+constexpr TimeDelta long_pulse_starts[num_base_stations] = {TimeDelta(0, usec), TimeDelta(410, usec)};
 
 constexpr TimeDelta cycle_period(8333, usec);  // Total len of 1 cycle.
 constexpr TimeDelta angle_center_len(4000, usec);
@@ -93,32 +93,32 @@ void PulseProcessor::process_short_pulse(const Pulse &p) {
 }
 
 void PulseProcessor::process_cycle_fix(Timestamp cur_time) {
-    uint32_t classified_long_pulses = cycle_long_pulses_[0].size() + cycle_long_pulses_[1].size();
-    if (classified_long_pulses > 0) {
-        // We have long pulses from at least one base station.
+    TimeDelta pulse_start_corrections[num_base_stations] = {}, pulse_lens[num_base_stations] = {};
 
+    // Check if we have long pulses from at least one base station.
+    if (cycle_long_pulses_[0].size() > 0 || cycle_long_pulses_[1].size() > 0) {
         // Increase fix level if we have pulses from both stations.
         if (cycle_fix_level_ < kCycleFixMax && cycle_long_pulses_[0].size() > 0 && cycle_long_pulses_[1].size() > 0) 
             cycle_fix_level_++;
         
-        // Adjust cycle start time.
+        // Average out long pulse lengths and start times for each base station across sensors.
+        // pulse_start_corrections is the delta between actual start time and expected start time.
         // TODO: Take into account previous cycles as well, i.e. adjust slowly.
-        TimeDelta correction(0, usec);
-        for (int b = 0; b < num_base_stations; b++)
-            for (uint32_t i = 0; i < cycle_long_pulses_[b].size(); i++)
-                correction += cycle_long_pulses_[b][i].start_time - long_pulse_starts[b] - cycle_start_time_;
-        cycle_start_time_ += correction / classified_long_pulses;
-
-        // Get average long pulse lengths from two buckets (0 if no pulses).
-        TimeDelta pulse_lens[num_base_stations];
         for (int b = 0; b < num_base_stations; b++)
             if (uint32_t num_pulses = cycle_long_pulses_[b].size()) {
-                for (uint32_t i = 0; i < num_pulses; i++)
-                    pulse_lens[b] += cycle_long_pulses_[b][i].pulse_len;
-                pulse_lens[b] /= num_pulses;
+                Timestamp expected_start_time = cycle_start_time_ + long_pulse_starts[b];
+                for (uint32_t i = 0; i < num_pulses; i++) {
+                    const Pulse &pulse = cycle_long_pulses_[b][i];
+                    pulse_start_corrections[b] += pulse.start_time - expected_start_time;
+                    pulse_lens[b] += pulse.pulse_len;
+                }
+                if (num_pulses > 1) {
+                    pulse_start_corrections[b] /= num_pulses;
+                    pulse_lens[b] /= num_pulses;
+                }
             }
 
-        // Find cycle phase from pulse lengths.
+        // Send pulse lengths to phase classifier.
         phase_classifier_.process_pulse_lengths(cycle_idx_, pulse_lens);
 
         // If needed, get the data bits from pulse lengths and send them down the pipeline
@@ -140,11 +140,16 @@ void PulseProcessor::process_cycle_fix(Timestamp cur_time) {
         // From (potentially several) short pulses for the same input, we choose the longest one.
         Pulse *short_pulses[max_num_inputs] = {};
         TimeDelta short_pulse_timings[max_num_inputs] = {};
-        TimeDelta base_station_delta = long_pulse_starts[cycle_phase >> 1];
+        uint32_t emitting_base = cycle_phase >> 1;
+        Timestamp base_pulse_start = cycle_start_time_ + long_pulse_starts[emitting_base] + pulse_start_corrections[emitting_base];
         for (uint32_t i = 0; i < cycle_short_pulses_.size(); i++) {
             Pulse *p = &cycle_short_pulses_[i];
             uint32_t input_idx = p->input_idx;
-            TimeDelta pulse_timing = p->start_time - cycle_start_time_ + p->pulse_len / 2 - base_station_delta;
+
+            // To get better precision, we calculate pulse timing based on the long pulse from the same base station.
+            TimeDelta pulse_timing = p->start_time + p->pulse_len / 2 - base_pulse_start;
+
+            // Get longest laser pulse.
             if (short_pulse_min_time < pulse_timing && pulse_timing < short_pulse_max_time)
                 if (!short_pulses[input_idx] || short_pulses[input_idx]->pulse_len < p->pulse_len) {
                     short_pulses[input_idx] = p;
@@ -173,7 +178,7 @@ void PulseProcessor::process_cycle_fix(Timestamp cur_time) {
     
     // Prepare for the next cycle.
     reset_cycle_pulses();
-    cycle_start_time_ += cycle_period;
+    cycle_start_time_ += cycle_period + pulse_start_corrections[0];
     cycle_idx_++;
 }
 
