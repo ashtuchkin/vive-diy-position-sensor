@@ -43,8 +43,5 @@ private:
     Vector<OutputDef, num_outputs> outputs_;
 };
 
-static_assert(sizeof(PersistentSettings) < 1500, "PersistentSettings must fit into eeprom");
-static_assert(std::is_trivially_copyable<PersistentSettings>(), "All definitions must be trivially copyable to be bitwise-stored");
-
 // Singleton to access current settings.
 extern PersistentSettings settings;

@@ -72,7 +72,7 @@ bool InputDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_strea
     if (*input_words == "pin"_hash)
         input_words++; // Ignore "pin" word
     
-    if (!input_words++->as_uint32(&pin) || pin >= CORE_NUM_TOTAL_PINS) {
+    if (!input_words++->as_uint32(&pin) || pin >= 256) {
         err_stream.printf("Invalid/missing pin number\n"); return false;
     }
 

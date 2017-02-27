@@ -2,7 +2,7 @@
 #include "input.h"
 
 struct ComparatorPorts;
-struct ComparatorInputPin;
+struct ComparatorDef;
 
 // Input node using Teensy's comparator modules. See description in .cpp file.
 class InputCmpNode : public InputNode {
@@ -23,6 +23,9 @@ private:
     bool rise_valid_;
     uint32_t cmp_threshold_;
     bool pulse_polarity_;
-    const ComparatorPorts *ports_;
-    const ComparatorInputPin *pin_;
+
+    int cmp_idx_;
+    int cmp_input_idx_;
+    volatile ComparatorPorts *ports_;
+    const ComparatorDef *cmp_def_;
 };

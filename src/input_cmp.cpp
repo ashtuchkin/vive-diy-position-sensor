@@ -1,56 +1,62 @@
 //
 // Definition of 'Comparator' type input (InputType::kCMP).
 //
-// Teensy 3.2 has 3 comparator modules: CMP0, CMP1, and CMP2. Each of them can issue an interrupt when
-// input pin voltage is crossing a threshold, both up and down. The threshold, called `cmp_threshold` in code, can be adjusted 
-// dynamically in 64 steps from 0V to 3.3V. This allows for more flexibility when dealing with analog sensors like the one
+// Teensy 3.x has up to 4 comparator modules: CMP0, CMP1, CMP2 and CMP3. Each of them can issue an interrupt when
+// input pin voltage is crossing a threshold, both up and down. The threshold can be adjusted dynamically 
+// in 64 steps from 0V to 3.3V. This allows for more flexibility when dealing with analog sensors like the one
 // described in this repo, but not really needed for commercial sensors.
 //
 // PROs:
 //   * Threshold can be dynamically adjusted.
 // CONs:
-//   * Up to 3 sensors at the same time; Only particular pins are supported (see input_pin_variants below).
-//   * Timing is calculated in ISR, leading to potential jitter.
+//   * Up to 4 (3 on Teensy 3.2) sensors at the same time; Only particular pins are supported (see comparator_defs below).
+//   * Timing is calculated in ISR, potentially increasing jitter.
 //
 #include "input_cmp.h"
 #include "settings.h"
 #include <Arduino.h>
 
-constexpr int num_comparators = 3;  // Number of Comparator modules in Teensy.
-
-// Registered InputCmpNode-s, by comparator num. Needed for interrupt handlers.
-static InputCmpNode *input_cmps[num_comparators];  
-
-// Mapping of comparator inputs to teensy pins
-struct ComparatorInputPin {
-    uint32_t cmp_num;  // Comparator index (CMP0/CMP1/CMP2)
-    uint32_t cmp_input;// Input # for comparator (ie. 5 => CMP0_IN5)
-    uint32_t pin;      // Teensy PIN
-};
-
-constexpr int num_input_pin_variants = 9;
-const static ComparatorInputPin input_pin_variants[num_input_pin_variants] = {
-    {0, 0, 11}, // CMP0_IN0 = Pin 11
-    {0, 1, 12}, // CMP0_IN1 = Pin 12
-    {0, 2, 28}, // CMP0_IN2 = Pin 28
-    {0, 3, 27}, // CMP0_IN3 = Pin 27
-    {0, 4, 29}, // CMP0_IN4 = Pin 29
-    {1, 0, 23}, // CMP1_IN0 = Pin 23
-    {1, 1,  9}, // CMP1_IN1 = Pin 9
-    {2, 0,  3}, // CMP2_IN0 = Pin 3
-    {2, 1,  4}, // CMP2_IN1 = Pin 4
-};
-
-// Port definitions for comparators
+// Teensy comparator port address block. Order is significant.
 struct ComparatorPorts {
-    volatile uint8_t *cr0, *cr1, *fpr, *scr, *daccr, *muxcr;
+    volatile uint8_t cr0, cr1, fpr, scr, daccr, muxcr;
+};
+static_assert(sizeof(ComparatorPorts) == 6, "ComparatorPorts struct must be packed.");
+
+constexpr int NA = -1; // Pin Not Available
+
+// Static configuration of a comparator: control ports base address, irq number and pin numbers
+struct ComparatorDef {
+    union {
+        volatile uint8_t *port_cr0;
+        ComparatorPorts *ports;
+    };
     int irq;
+    int input_pins[6];  // CMPx_INy to Teensy digital pin # mapping. DAC0=100, DAC1=101.
 };
-const static ComparatorPorts comparator_port_defs[num_comparators] = {
-    {&CMP0_CR0, &CMP0_CR1, &CMP0_FPR, &CMP0_SCR, &CMP0_DACCR, &CMP0_MUXCR, IRQ_CMP0},
-    {&CMP1_CR0, &CMP1_CR1, &CMP1_FPR, &CMP1_SCR, &CMP1_DACCR, &CMP1_MUXCR, IRQ_CMP1},
-    {&CMP2_CR0, &CMP2_CR1, &CMP2_FPR, &CMP2_SCR, &CMP2_DACCR, &CMP2_MUXCR, IRQ_CMP2},
+
+// Comparator definitions.
+const static ComparatorDef comparator_defs[] = {
+#if defined(__MK20DX128__)  // Teensy 3.0. Chip 64 LQFP pin numbers in comments. Teensy digital pins as numbers.
+    {&CMP0_CR0, IRQ_CMP0, {/*51 */11, /*52 */12, /*53 */28, /*54 */ 27,  /*-- */NA,  /*17*/NA}},
+    {&CMP1_CR0, IRQ_CMP1, {/*45 */23, /*46 */ 9,        NA,         NA,         NA,  /*17*/NA}},
+#elif defined(__MK20DX256__)  // Teensy 3.1, 3.2. Chip 64 LQFP pin numbers in comments. Teensy digital pins as numbers, DAC0=100
+    {&CMP0_CR0, IRQ_CMP0, {/*51 */11, /*52 */12, /*53 */28, /*54 */ 27,  /*55 */29,  /*17*/NA}},
+    {&CMP1_CR0, IRQ_CMP1, {/*45 */23, /*46 */ 9,        NA, /*18 */100,         NA,  /*17*/NA}},
+    {&CMP2_CR0, IRQ_CMP2, {/*28 */ 3, /*29 */ 4,        NA,         NA,         NA,        NA}},
+#elif defined(__MK64FX512__) || defined(__MK66FX1M0__)  // Teensy 3.5, 3.6. Chip 144 MAPBGA pin id-s in comments. Teensy digitial pins as numbers, DAC0=100, DAC1=101
+    {&CMP0_CR0, IRQ_CMP0, {/*C8 */11, /*B8 */12, /*A8 */35, /*D7 */ 36, /*L4 */101, /*M3 */NA}},
+    {&CMP1_CR0, IRQ_CMP1, {/*A12*/23, /*A11*/ 9, /*J3 */NA, /*L3 */100,         NA, /*M3 */NA}},
+    {&CMP2_CR0, IRQ_CMP2, {/*K9 */ 3, /*J9 */ 4, /*K3 */NA, /*L4 */101,         NA,        NA}},
+  #if defined(__MK66FX1M0__)
+    {&CMP3_CR0, IRQ_CMP3, {       NA, /*L11*/27, /*K10*/28,         NA, /*K12*/ NA, /*J12*/NA}},
+  #endif
+#endif
 };
+
+constexpr int num_comparators = sizeof(comparator_defs) / sizeof(comparator_defs[0]);
+
+// Registered InputCmpNode-s, by comparator num. Used by interrupt handlers.
+static InputCmpNode *input_cmps[num_comparators];  
 
 
 void InputCmpNode::setCmpThreshold(uint32_t level) { // level = 0..63, from 0V to 3V3.
@@ -58,7 +64,7 @@ void InputCmpNode::setCmpThreshold(uint32_t level) { // level = 0..63, from 0V t
         level = 63 - level;
     
     // DAC Control: Enable; Reference=3v3 (Vin1=VREF_OUT=1V2; Vin2=VDD=3V3); Output select=0
-    *ports_->daccr = CMP_DACCR_DACEN | CMP_DACCR_VRSEL | CMP_DACCR_VOSEL(level);
+    ports_->daccr = CMP_DACCR_DACEN | CMP_DACCR_VRSEL | CMP_DACCR_VOSEL(level);
 }
 /*
 inline ComparatorData *cmpDataFromInputIdx(uint32_t input_idx) {
@@ -133,63 +139,64 @@ InputCmpNode::InputCmpNode(uint32_t input_idx, const InputDef &input_def)
     , pulse_polarity_(input_def.pulse_polarity) {
 
     // Find comparator and input num for given pin.
-    const ComparatorInputPin *pin = 0;
-    for (int i = 0; i < num_input_pin_variants; i++)
-        if (input_pin_variants[i].pin == input_def.pin) {
-            pin = &input_pin_variants[i];
-            break;
-        }
+    int cmp_idx, cmp_input_idx;
+    bool pin_found = false;
+    for (cmp_idx = 0; cmp_idx < num_comparators && !pin_found; cmp_idx++)
+        for (cmp_input_idx = 0; cmp_input_idx < 6 && !pin_found; cmp_input_idx++)
+            if (comparator_defs[cmp_idx].input_pins[cmp_input_idx] == (int)input_def.pin)
+                pin_found = true;
     
-    if (!pin)
+    if (!pin_found)
         throw_printf("Pin %lu is not supported for 'cmp' input type.\n", input_def.pin);
 
-    InputCmpNode *otherInput = input_cmps[pin->cmp_num];
+    InputCmpNode *otherInput = input_cmps[cmp_idx];
     if (otherInput)
         throw_printf("Can't use pin %lu for a 'cmp' input type: CMP%lu is already in use by pin %lu.\n", 
-                                         input_def.pin, otherInput->pin_->cmp_num, otherInput->pin_->pin);
+                                input_def.pin, cmp_idx, comparator_defs[cmp_idx].input_pins[otherInput->cmp_input_idx_]);
     
     if (input_def.initial_cmp_threshold >= 64)
         throw_printf("Invalid threshold value for 'cmp' input type on pin %lu. Supported values: 0-63\n", input_def.pin);
 
-    pin_ = pin;
-    ports_ = &comparator_port_defs[pin->cmp_num];
-    input_cmps[pin->cmp_num] = this;
+    cmp_idx_ = cmp_idx;
+    cmp_input_idx_ = cmp_input_idx;
+    cmp_def_ = &comparator_defs[cmp_idx_];
+    ports_ = cmp_def_->ports;
+    input_cmps[cmp_idx_] = this;
 }
 
 InputCmpNode::~InputCmpNode() {
-    input_cmps[pin_->cmp_num] = nullptr;
+    input_cmps[cmp_idx_] = nullptr;
 }
 
 void InputCmpNode::start() {
     InputNode::start();
 
-    NVIC_SET_PRIORITY(ports_->irq, 64); // very high prio (0 = highest priority, 128 = medium, 255 = lowest)
-    NVIC_ENABLE_IRQ(ports_->irq);
+    NVIC_SET_PRIORITY(cmp_def_->irq, 64); // very high prio (0 = highest priority, 128 = medium, 255 = lowest)
+    NVIC_ENABLE_IRQ(cmp_def_->irq);
 
     SIM_SCGC4 |= SIM_SCGC4_CMP; // Enable clock for comparator
 
     // Filter disabled; Hysteresis level 0 (0=5mV; 1=10mV; 2=20mV; 3=30mV)
-    *ports_->cr0 = CMP_CR0_FILTER_CNT(0) | CMP_CR0_HYSTCTR(0);
+    ports_->cr0 = CMP_CR0_FILTER_CNT(0) | CMP_CR0_HYSTCTR(0);
 
     // Filter period - disabled
-    *ports_->fpr = 0;
+    ports_->fpr = 0;
 
     // Input/MUX Control
-    pinMode(pin_->pin, INPUT);
+    pinMode(cmp_def_->input_pins[cmp_input_idx_], INPUT);
     const static uint32_t ref_input = 7; // CMPn_IN7 (DAC Reference Voltage, which we control in setCmpThreshold())
-    uint32_t cmp_input = pin_->cmp_input;
-    *ports_->muxcr = pulse_polarity_
-        ? CMP_MUXCR_PSEL(cmp_input) | CMP_MUXCR_MSEL(ref_input)
-        : CMP_MUXCR_PSEL(ref_input) | CMP_MUXCR_MSEL(cmp_input);
+    ports_->muxcr = pulse_polarity_
+        ? CMP_MUXCR_PSEL(cmp_input_idx_) | CMP_MUXCR_MSEL(ref_input)
+        : CMP_MUXCR_PSEL(ref_input) | CMP_MUXCR_MSEL(cmp_input_idx_);
 
     // Comparator ON; Sampling disabled; Windowing disabled; Power mode: High speed; Output Pin disabled;
-    *ports_->cr1 = CMP_CR1_PMODE | CMP_CR1_EN;
+    ports_->cr1 = CMP_CR1_PMODE | CMP_CR1_EN;
     setCmpThreshold(cmp_threshold_);
 
     delay(5);
 
     // Status & Control: DMA Off; Interrupt: both rising & falling; Reset current state.
-    *ports_->scr = CMP_SCR_IER | CMP_SCR_IEF | CMP_SCR_CFR | CMP_SCR_CFF;
+    ports_->scr = CMP_SCR_IER | CMP_SCR_IEF | CMP_SCR_CFR | CMP_SCR_CFF;
 }
 
 bool InputCmpNode::debug_cmd(HashedWord *input_words) {
@@ -222,4 +229,9 @@ inline void __attribute__((always_inline)) InputCmpNode::_isr_handler(volatile u
 
 void cmp0_isr() { if (input_cmps[0]) input_cmps[0]->_isr_handler(&CMP0_SCR); }
 void cmp1_isr() { if (input_cmps[1]) input_cmps[1]->_isr_handler(&CMP1_SCR); }
+#if defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
 void cmp2_isr() { if (input_cmps[2]) input_cmps[2]->_isr_handler(&CMP2_SCR); }
+#endif
+#if defined(__MK66FX1M0__)
+void cmp3_isr() { if (input_cmps[3]) input_cmps[3]->_isr_handler(&CMP3_SCR); }
+#endif

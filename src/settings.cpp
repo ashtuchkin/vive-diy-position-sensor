@@ -4,12 +4,16 @@
 #include "vive_sensors_pipeline.h"
 #include "led_state.h"
 
-#include <avr_functions.h>
+#include <avr/eeprom.h>
 #include <Stream.h>
 #include <kinetis.h>
 
 constexpr uint32_t current_settings_version = 0xbabe0000 + sizeof(PersistentSettings);
 constexpr uint32_t *eeprom_addr = 0;
+
+static_assert(sizeof(PersistentSettings) < E2END - 500, "PersistentSettings must fit into EEPROM with some leeway");
+static_assert(std::is_trivially_copyable<PersistentSettings>(), "All definitions must be trivially copyable to be bitwise-stored");
+
 /* Example settings
 # Comments are prepended by '#'
 reset  # Reset all settings to clean state
