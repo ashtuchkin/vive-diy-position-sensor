@@ -1,4 +1,4 @@
-# DIY Position Tracking using HTC Vive's Lighthouse
+# DIY Position Tracking using HTC Vive's Lighthouse  [![Build Status](https://travis-ci.org/ashtuchkin/vive-diy-position-sensor.svg?branch=master)](https://travis-ci.org/ashtuchkin/vive-diy-position-sensor)
  * General purpose indoor positioning sensor, good for robots, drones, etc.
  * 3d position accuracy: currently ~10mm; less than 2mm possible with additional work.
  * Update frequency: 30 Hz

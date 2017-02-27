@@ -7,9 +7,10 @@
 Later:
  * [ ] Create multi-sensor geometry processing unit
  * [ ] Add calibration mode to calculate base station geometry. Don't depend on having a full htc vive setup.
+ * [ ] Provide .hex files for teensies 3.2 and 3.6. (see #14)
  * [ ] Increase precision by applying geometry adjustments for base stations. 1:1 with Unity.
  * [ ] Create Unity tutorial.
- * [ ] Write articles about timestamps, pipeline/modules, hashing.
+ * [ ] Write articles about timestamps, pipeline/modules, hashing, cross-platform unit testing (see https://news.ycombinator.com/item?id=13691115).
  * [ ] Increase precision by keeping an estimate of cycle and removing uncertainty of long pulses.
  * [ ] Re-check all last-success timestamps (LongTimestamp) - they don't survive the overflow.
  * [ ] Remove Timestamp in favor of std::chrono::duration (http://en.cppreference.com/w/cpp/chrono/duration)
