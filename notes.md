@@ -6,19 +6,21 @@
 
 Later:
  * [ ] Create multi-sensor geometry processing unit
+ * [ ] Add calibration mode to calculate base station geometry. Don't depend on having a full htc vive setup.
  * [ ] Increase precision by applying geometry adjustments for base stations. 1:1 with Unity.
  * [ ] Create Unity tutorial.
+ * [ ] Write articles about timestamps, pipeline/modules, hashing.
  * [ ] Increase precision by keeping an estimate of cycle and removing uncertainty of long pulses.
  * [ ] Re-check all last-success timestamps (LongTimestamp) - they don't survive the overflow.
  * [ ] Remove Timestamp in favor of std::chrono::duration (http://en.cppreference.com/w/cpp/chrono/duration)
  * [ ] Remove Vector in favor of std::vector.
- * [ ] Rewrite _sbrk() to not allow heap to go to into stack.
- * [ ] Add unit testing
+ * [ ] Add stack overflow protection (or at least find out that it happened).
+ * [ ] Cover all major cases with tests
  * [ ] Add polling mode for outputs
  * [ ] DataFrame: Check CRC32.
- * [ ] Avoid using double (-Wdouble-promotion). This will require killing all printf-s.
  * [ ] Split PersistentSettings to Settings and Persistent<>
  * [ ] Get rid of Teensy's Print. Use vsnprintf instead. debug_print, print_def, parse_def, DataChunkPrint
+ * [ ] Avoid using double (-Wdouble-promotion). This will require killing all printf-s.
  * [ ] (Maybe) Introduce EASTL library and all its niceties like fixed_vector. Tried it and it looks problematic (platform not supported + threading issues).
 
 ### Style guide
