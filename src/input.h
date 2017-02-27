@@ -49,4 +49,6 @@ private:
     static constexpr int pulses_buffer_len = 32;
     CircularBuffer<Pulse, pulses_buffer_len> pulses_buf_;
 };
- 
+
+// Create functions for each supported input types.
+std::unique_ptr<InputNode> createInputCmpNode(uint32_t input_idx, const InputDef &input_def);

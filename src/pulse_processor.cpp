@@ -1,5 +1,6 @@
 #include "pulse_processor.h"
 #include "message_logging.h"
+#include <math.h>
 
 // Pulse classification parameters.
 constexpr TimeDelta min_short_pulse_len(2, usec);

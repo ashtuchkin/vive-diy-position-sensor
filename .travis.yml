@@ -1,0 +1,32 @@
+# Based on http://stackoverflow.com/a/41916657, https://github.com/Microsoft/GSL/blob/master/.travis.yml
+branches:
+  only:
+  - master
+
+dist: trusty
+sudo: required
+language: cpp
+compiler: gcc
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - gcc-6
+      - g++-6
+      - gcc-6-multilib
+      - g++-6-multilib
+      - gcc-multilib
+      - cmake
+
+install:
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 50
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 50
+  - gcc --version && g++ --version && cmake --version
+
+before_script:
+  - mkdir build && cd build
+  - cmake -DTEST_MODE=TRUE .. && cmake --build .
+
+script:
+  - ctest --output-on-failure

@@ -1,0 +1,26 @@
+{
+    "buildType": {
+        "default$": "debug",
+        "description$": "the build type to use",
+        "debug": {
+            "oneWordSummary$": "Debug",
+            "description$": "Enable optimizations, include debug info",
+            "buildType": "Debug"
+        },
+        "release": {
+            "oneWordSummary$": "Release",
+            "description$": "Enable optimizations, omit debug info",
+            "buildType": "Release"
+        },
+        "test": {
+            "oneWordSummary$": "Test",
+            "description$": "Test the project",
+            "buildType": "Debug",
+            "settings": {
+                "TEST_MODE": "TRUE",
+                "CMAKE_C_COMPILER": "/usr/local/bin/gcc-6",
+                "CMAKE_CXX_COMPILER": "/usr/local/bin/g++-6"
+            }
+        }
+    }
+}

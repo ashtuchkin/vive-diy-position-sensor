@@ -1,6 +1,7 @@
 #pragma once
 #include "primitives/workers.h"
 #include "primitives/producer_consumer.h"
+#include "primitives/float16.h"
 #include "messages.h"
 
 // See data frame description here: 
@@ -13,14 +14,14 @@ struct DecodedDataFrame {
     uint8_t protocol : 6;       // Protocol version (bits 5..0).
     uint16_t fw_version : 10;   // Firmware version (bits 15..6).
     uint32_t id;                // Unique identifier of the base station (CRC32 of the 128-bit MCU UID)
-    __fp16 fcal_phase[2];       // "phase" - probably phase difference between real angle and measured.
-    __fp16 fcal_tilt[2];        // "tilt" - probably rotation of laser plane
+    fp16 fcal_phase[2];       // "phase" - probably phase difference between real angle and measured.
+    fp16 fcal_tilt[2];        // "tilt" - probably rotation of laser plane
     uint8_t sys_unlock_count;   // Lowest 8 bits of the rotor desynchronization counter
     uint8_t hw_version;         // Hardware version
-    __fp16 fcal_curve[2];       // "curve"
+    fp16 fcal_curve[2];       // "curve"
     int8_t accel_dir[3];        // Orientation vector, scaled so that largest component is always +-127.
-    __fp16 fcal_gibphase[2];    // "gibbous phase" (normalized angle)
-    __fp16 fcal_gibmag[2];      // "gibbous magnitude"
+    fp16 fcal_gibphase[2];    // "gibbous phase" (normalized angle)
+    fp16 fcal_gibmag[2];      // "gibbous magnitude"
     uint8_t mode_current;       // Currently selected mode (default: 0=A, 1=B, 2=C)
     uint8_t sys_faults;         // "fault detect flags" (should be 0)
 } __attribute__((packed));

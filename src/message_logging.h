@@ -6,7 +6,7 @@
 #include "primitives/circular_buffer.h"
 #include "primitives/hash.h"
 #include "data_frame_decoder.h"
-#include <Arduino.h>
+#include <Print.h>
 
 // This function is used to print messages used in Producer-Consumer pattern.
 // Please specialize this function for your messages below.

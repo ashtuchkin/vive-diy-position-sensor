@@ -44,7 +44,10 @@ public:
     inline bool dequeue(T *result_elem) {
         if (!empty()) {
             *result_elem = elems_[read_idx_ & (C-1)];
+#ifdef __arm__
+            // As this function can be used across irq context, make sure the order is correct.
             asm volatile ("dmb 0xF":::"memory");
+#endif
             read_idx_++; 
             return true;
         } else {
@@ -57,7 +60,10 @@ public:
     inline bool enqueue(const T& elem) {
         if (!full()) {
             elems_[write_idx_ & (C-1)] = elem;
+#ifdef __arm__
+            // As this function can be used across irq context, make sure the order is correct.
             asm volatile ("dmb 0xF":::"memory");
+#endif
             write_idx_++;
             return true;
         } else {

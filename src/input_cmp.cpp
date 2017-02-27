@@ -164,6 +164,10 @@ InputCmpNode::InputCmpNode(uint32_t input_idx, const InputDef &input_def)
     input_cmps[cmp_idx_] = this;
 }
 
+std::unique_ptr<InputNode> createInputCmpNode(uint32_t input_idx, const InputDef &input_def) {
+    return std::make_unique<InputCmpNode>(input_idx, input_def);
+}
+
 InputCmpNode::~InputCmpNode() {
     input_cmps[cmp_idx_] = nullptr;
 }

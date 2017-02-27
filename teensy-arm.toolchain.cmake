@@ -59,7 +59,7 @@ set_property(CACHE TEENSY_USB_MODE PROPERTY STRINGS SERIAL HID SERIAL_HID MIDI R
 set(TARGET_FLAGS "-mcpu=cortex-m4 -mthumb -mfp16-format=ieee")
 set(OPTIMIZE_FLAGS "-O2" CACHE STRING "Optimization flags")  # Remember to reset cache and rebuild cmake when changing this.
 set(CMAKE_C_FLAGS "${OPTIMIZE_FLAGS} -Wall -ffunction-sections -fdata-sections -Wstack-usage=256 ${TARGET_FLAGS}" CACHE STRING "C/C++ flags")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=gnu++14 -fno-rtti -fsingle-precision-constant -Woverloaded-virtual" CACHE STRING "C++ flags")
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-rtti -fsingle-precision-constant -Woverloaded-virtual" CACHE STRING "C++ flags")
 
 set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "" FORCE)  # Don't do -O3 because it increases the size. Just remove asserts.
 set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "" FORCE)

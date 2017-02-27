@@ -1,12 +1,11 @@
 #include "input.h"
 #include "message_logging.h"
-#include "input_cmp.h"
 
 // Multiplexer method to create input node of correct type.
 // Throws exceptions on incorrect values.
 std::unique_ptr<InputNode> InputNode::create(uint32_t input_idx, const InputDef &input_def) {
     switch (input_def.input_type) {
-        case InputType::kCMP: return std::make_unique<InputCmpNode>(input_idx, input_def);
+        case InputType::kCMP: return createInputCmpNode(input_idx, input_def);
         case InputType::kPort: throw_printf("Port input type not implemented yet");
         case InputType::kFTM: throw_printf("FTM input type not implemented yet");
         default: throw_printf("Unknown input type");
@@ -65,7 +64,7 @@ void InputDef::print_def(uint32_t idx, Print &stream) {
     stream.printf("sensor%d pin %d %s %s", idx, pin, pulse_polarity ? "positive" : "negative", input_types[(int)input_type].word);
     if (input_type == InputType::kCMP)
         stream.printf(" %d", initial_cmp_threshold);
-    stream.println();
+    stream.printf("\n");
 }
 
 bool InputDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream) {

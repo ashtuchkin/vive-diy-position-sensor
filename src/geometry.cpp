@@ -1,9 +1,10 @@
 #include "geometry.h"
-#include <arm_math.h>
+#include <math.h>
 #include <assert.h>
+#include <algorithm>
 
+#include <arm_math.h>
 #include "primitives/string_utils.h"
-#include "Print.h"
 #include "message_logging.h"
 #include "led_state.h"
 
@@ -46,7 +47,7 @@ void PointGeometryBuilder::consume(const SensorAnglesFrame& f) {
         // Check angles are fresh enough.
         uint32_t max_stale = 0;
         for (int i = 0; i < num_cycle_phases; i++)
-            max_stale = max(max_stale, f.cycle_idx - sens.updated_cycles[i]);
+            max_stale = std::max(max_stale, f.cycle_idx - sens.updated_cycles[i]);
 
         if (max_stale < num_cycle_phases * 3) {  // We tolerate stale angles up to 2 cycles old.
             pos_.fix_level = (max_stale < num_cycle_phases) 
@@ -227,7 +228,7 @@ void BaseStationGeometryDef::print_def(uint32_t idx, Print &stream) {
     stream.printf(" matrix");
     for (int j = 0; j < 9; j++)
         stream.printf(" %f", mat[j]);
-    stream.println();
+    stream.printf("\n");
 }
 
 bool BaseStationGeometryDef::parse_def(uint32_t idx, HashedWord *input_words, Print &stream) {
@@ -255,7 +256,7 @@ void GeometryBuilderDef::print_def(uint32_t idx, Print &stream) {
         const SensorLocalGeometry &sensor = sensors[i];
         stream.printf(" sensor%d %.4f %.4f %.4f", sensor.input_idx, sensor.pos[0], sensor.pos[1], sensor.pos[2]);
     }
-    stream.println();
+    stream.printf("\n");
 }
 
 bool GeometryBuilderDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream) {
