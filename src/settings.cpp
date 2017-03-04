@@ -108,7 +108,7 @@ void PersistentSettings::set_value(Vector<T, arr_len> &arr, uint32_t idx, Hashed
 
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic warning "-Wstack-usage=512"  // Allow slightly higher stack usage for this function.
+#pragma GCC diagnostic ignored "-Wstack-usage="  // Allow higher stack usage for this particular function.
 
 void PersistentSettings::initialize_from_user_input(Stream &stream) {
     Vector<char, max_input_str_len> input_buf{};

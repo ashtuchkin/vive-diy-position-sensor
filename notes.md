@@ -7,6 +7,9 @@
 Later:
  * [ ] Create multi-sensor geometry processing unit
  * [ ] Add calibration mode to calculate base station geometry. Don't depend on having a full htc vive setup.
+ * [ ] Port library to Particle Photon and use Wifi to get signal to Unity.
+   * GCC 5.4 works fine with particle firmware 0.6.1 and has all the C++14 features. 
+   * See docs/build.md for app compilation details (We'll need to use build.mk and APPDIR).
  * [ ] Provide .hex files for teensies 3.2 and 3.6. (see #14)
  * [ ] Increase precision by applying geometry adjustments for base stations. 1:1 with Unity.
  * [ ] Create Unity tutorial.

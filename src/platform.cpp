@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include <avr_functions.h>  // eeprom handling.
 #include <avr_emulation.h>
