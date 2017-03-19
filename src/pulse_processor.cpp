@@ -222,7 +222,7 @@ bool PulseProcessor::debug_cmd(HashedWord *input_words) {
     return false;
 }
 
-void PulseProcessor::debug_print(Print &stream) {
+void PulseProcessor::debug_print(PrintStream &stream) {
     phase_classifier_.debug_print(stream);
     producer_debug_print<SensorAnglesFrame>(this, stream);
     producer_debug_print<DataFrameBit>(this, stream);

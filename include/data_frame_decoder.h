@@ -38,7 +38,7 @@ public:
     virtual void consume(const DataFrameBit &bit);
 
     virtual bool debug_cmd(HashedWord *input_words);
-    virtual void debug_print(Print& stream);
+    virtual void debug_print(PrintStream &stream);
 
 private:
     void reset();

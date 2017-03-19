@@ -34,7 +34,7 @@ struct ComparatorDef {
     int input_pins[6];  // CMPx_INy to Teensy digital pin # mapping. DAC0=100, DAC1=101.
 };
 
-// Comparator definitions.
+// Comparator pin definitions.
 const static ComparatorDef comparator_defs[] = {
 #if defined(__MK20DX128__)  // Teensy 3.0. Chip 64 LQFP pin numbers in comments. Teensy digital pins as numbers.
     {&CMP0_CR0, IRQ_CMP0, {/*51 */11, /*52 */12, /*53 */28, /*54 */ 27,  /*-- */NA,  /*17*/NA}},
@@ -164,9 +164,11 @@ InputCmpNode::InputCmpNode(uint32_t input_idx, const InputDef &input_def)
     input_cmps[cmp_idx_] = this;
 }
 
-std::unique_ptr<InputNode> createInputCmpNode(uint32_t input_idx, const InputDef &input_def) {
-    return std::make_unique<InputCmpNode>(input_idx, input_def);
-}
+InputNode::CreatorRegistrar InputCmpNode::creator_([](uint32_t input_idx, const InputDef &input_def) -> std::unique_ptr<InputNode> {
+    if (input_def.input_type == InputType::kCMP)
+        return std::make_unique<InputCmpNode>(input_idx, input_def);
+    return nullptr;
+});
 
 InputCmpNode::~InputCmpNode() {
     input_cmps[cmp_idx_] = nullptr;
@@ -208,7 +210,7 @@ bool InputCmpNode::debug_cmd(HashedWord *input_words) {
     return InputNode::debug_cmd(input_words);
 }
 
-void InputCmpNode::debug_print(Print& stream) {
+void InputCmpNode::debug_print(PrintStream& stream) {
     InputNode::debug_print(stream);    
 }
 

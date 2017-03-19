@@ -20,14 +20,16 @@ public:
     // Settings lifecycle methods
     PersistentSettings();
     bool needs_configuration() { return !is_configured_; }
-    void initialize_from_user_input(Stream &interactive_stream);
     void restart_in_configuration_mode();
 
+    std::unique_ptr<Pipeline> create_configuration_pipeline(uint32_t stream_idx);
+    bool process_command(char *input_cmd, PrintStream &stream);
+
 private:
-    bool validate_setup(Print &error_stream);
+    bool validate_setup(PrintStream &error_stream);
 
     template<typename T, unsigned arr_len>
-    void set_value(Vector<T, arr_len> &arr, uint32_t idx, HashedWord *input_words, Print& stream);
+    void set_value(Vector<T, arr_len> &arr, uint32_t idx, HashedWord *input_words, PrintStream &stream);
 
     void reset();
     bool read_from_eeprom();
@@ -45,3 +47,8 @@ private:
 
 // Singleton to access current settings.
 extern PersistentSettings settings;
+
+// Functions to be implemented by platform
+void restart_system();
+void eeprom_read(uint32_t eeprom_addr, void *dest, uint32_t len);
+void eeprom_write(uint32_t eeprom_addr, const void *src, uint32_t len);

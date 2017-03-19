@@ -3,13 +3,11 @@
 
 // Multiplexer method to create input node of correct type.
 // Throws exceptions on incorrect values.
-std::unique_ptr<InputNode> InputNode::create(uint32_t input_idx, const InputDef &input_def) {
-    switch (input_def.input_type) {
-        case InputType::kCMP: return createInputCmpNode(input_idx, input_def);
-        case InputType::kPort: throw_printf("Port input type not implemented yet");
-        case InputType::kFTM: throw_printf("FTM input type not implemented yet");
-        default: throw_printf("Unknown input type");
-    }
+std::unique_ptr<InputNode> InputNode::create(uint32_t idx, const InputDef &def) {
+    for (auto creator_fn : InputNode::CreatorRegistrar::iterate())
+        if (auto node = creator_fn(idx, def))
+            return node;
+    throw_printf("Unknown/unimplemented input type");
 }
 
 
@@ -45,29 +43,28 @@ bool InputNode::debug_cmd(HashedWord *input_words) {
     return false;
 }
 
-void InputNode::debug_print(Print& stream) {
+void InputNode::debug_print(PrintStream &stream) {
     producer_debug_print<Pulse>(this, stream);
 }
 
 
 // ====  InputDef I/O ================================
-#include "Print.h"
 #include "primitives/string_utils.h"
 
 HashedWord input_types[kInputTypeCount] = {
-    [(int)InputType::kCMP]  = { "cmp", "cmp"_hash },
-    [(int)InputType::kFTM]  = { "ftm", "ftm"_hash },
-    [(int)InputType::kPort] = { "port_irq", "port_irq"_hash },
+    [(int)InputType::kCMP]   = { "cmp", "cmp"_hash },
+    [(int)InputType::kTimer] = { "tim", "tim"_hash },
+    [(int)InputType::kPort]  = { "port_irq", "port_irq"_hash },
 };
 
-void InputDef::print_def(uint32_t idx, Print &stream) {
+void InputDef::print_def(uint32_t idx, PrintStream &stream) {
     stream.printf("sensor%d pin %d %s %s", idx, pin, pulse_polarity ? "positive" : "negative", input_types[(int)input_type].word);
     if (input_type == InputType::kCMP)
         stream.printf(" %d", initial_cmp_threshold);
     stream.printf("\n");
 }
 
-bool InputDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream) {
+bool InputDef::parse_def(uint32_t idx, HashedWord *input_words, PrintStream &err_stream) {
     if (*input_words == "pin"_hash)
         input_words++; // Ignore "pin" word
     

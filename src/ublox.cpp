@@ -103,7 +103,7 @@ enum ubx_nav_status_bits {
     NAV_STATUS_FIX_VALID = 1
 };
 
-void send_ublox_packet(Stream &stream, uint8_t msg_class, uint8_t msg_id, const void *payload, uint8_t payload_len) {
+void send_ublox_packet(PrintStream &stream, uint8_t msg_class, uint8_t msg_id, const void *payload, uint8_t payload_len) {
     ubx_packet packet = {{PREAMBLE1, PREAMBLE2, msg_class, msg_id, payload_len}, {}};
 
     memcpy(packet.payload, payload, payload_len);
@@ -121,7 +121,7 @@ void send_ublox_packet(Stream &stream, uint8_t msg_class, uint8_t msg_id, const 
 }
 
 // all arguments in mm and mm/s
-void send_ublox_ned_position(Stream &stream, bool fix_valid, float *pos, float *vel) {
+void send_ublox_ned_position(PrintStream &stream, bool fix_valid, float *pos, float *vel) {
     const static int origin_lat = 1000000; // .1 degree
     const static int origin_lon = 1000000; // .1 degree
     const static int accuracy = 10; // mm

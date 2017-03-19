@@ -33,7 +33,7 @@ public:
 
     // Print debug information.
     virtual bool debug_cmd(HashedWord *input_words);
-    virtual void debug_print(Print& stream);
+    virtual void debug_print(PrintStream &stream);
 
 private:
     float expected_pulse_len(bool skip, bool data, bool axis);

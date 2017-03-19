@@ -1,10 +1,8 @@
 #include "debug_node.h"
 #include <assert.h>
-#include <malloc.h>
 
 #include "settings.h"
 #include "led_state.h"
-#include "platform.h"
 #include "print_helpers.h"
 
 
@@ -26,7 +24,7 @@ void DebugNode::consume_line(char *input_cmd, Timestamp time) {
     HashedWord* hashed_words = hash_words(input_cmd);
     bool res = !*hashed_words || pipeline_->debug_cmd(hashed_words);
     if (!output_attached_ && !continuous_debug_print_) {
-        DataChunkPrint printer(this, time, stream_idx_);
+        DataChunkPrintStream printer(this, time, stream_idx_);
         if (!res)
             printer.printf("Unknown command.\n");                
         else if (print_debug)
@@ -39,7 +37,7 @@ void DebugNode::do_work(Timestamp cur_time) {
     // Print current debug state if continuous printing is enabled.
     if (continuous_debug_print_ > 0 
             && throttle_ms(TimeDelta(continuous_debug_print_, ms), cur_time, &continuous_print_period_)) {
-        DataChunkPrint printer(this, cur_time, stream_idx_);
+        DataChunkPrintStream printer(this, cur_time, stream_idx_);
         pipeline_->debug_print(printer);
     }
 
@@ -86,30 +84,8 @@ bool DebugNode::debug_cmd(HashedWord *input_words) {
     return false;
 }
 
-
-// ======  System-wide debug metrics  =========================================
-
-// Link-time constant markers. Note, you need the *address* of these.
-extern char _sdata;   // start of static data
-extern char _edata;
-extern char _sbss;
-extern char _ebss;    // end of static data; bottom of heap
-extern char _estack;  // bottom of stack, top of ram: stack grows down towards heap
-
-// Dynamic values from mk20dx128.c
-extern char *__brkval; // top of heap (dynamic ram): grows up towards stack
-
-void DebugNode::debug_print(Print &stream) {
+void DebugNode::debug_print(PrintStream &stream) {
     if (print_debug_memory_) {
-        uint32_t static_data_size = &_ebss - (char*)((uint32_t)&_sdata & 0xFFFFF000);
-        uint32_t allocated_heap = __brkval - &_ebss;
-        char c, *top_stack = &c;
-        int32_t unallocated = (&_estack - stack_size) - __brkval;
-        int32_t stack_max_used = get_stack_high_water_mark();
-        uint32_t stack_used = &_estack - top_stack;
-
-        struct mallinfo m = mallinfo();
-        stream.printf("RAM: static %d, heap %d (used %d, free %d), unalloc %d, stack %d (used %d, max %d)\n", 
-            static_data_size, allocated_heap, m.uordblks, m.fordblks, unallocated, stack_size, stack_used, stack_max_used);
+        print_platform_memory_info(stream);
     }
 }

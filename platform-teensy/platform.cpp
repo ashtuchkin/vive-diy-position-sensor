@@ -1,8 +1,12 @@
-#include "platform.h"
+#include "debug_node.h"
+#include "settings.h"
+
 #include <exception>
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
+#include <malloc.h>
 
 #include <avr_functions.h>  // eeprom handling.
 #include <avr_emulation.h>
@@ -20,7 +24,7 @@ using namespace abi;
 // For Teensy, some of them are defined in teensy3/mk20dx128.c  but we need to 
 
 
-// ====  1. Termination  ================================
+// ====  1. Termination  ======================================================
 
 // abort() is a C stdlib function to do an abnormal program termination.
 // It's being called for example when exception handling mechanisms themselves fail. 
@@ -74,7 +78,7 @@ namespace __cxxabiv1 {
 // TODO: We might want to re-define _exit() and __cxa_pure_virtual() as well to provide meaningful actions.
 // TODO: Define correct actions for hard failures like division by zero or invalid memory access (see -fnon-call-exceptions)
 
-// ====  2. Memory & Stack  ================================
+// ====  2. Memory & Stack  ===================================================
 // Low-level _sbrk() syscall used to allocate memory is defined in teensy3/mk20dx128.c and very simple - just moves 
 // __brkval, current top of the heap. We're rewriting it to add stack clashing check.
 // malloc() uses _sbrk(). operator new() uses malloc().
@@ -89,6 +93,10 @@ namespace __cxxabiv1 {
 // use dynamic methods like filling stack with a pattern.
 // NOTE: Stack overflow is not actually checked, but we're guaranteed that heap don't grow into stack of given size.
 // A proper solution would require setting up MMU correctly, which we don't want to do now.
+
+// Max stack size.
+// NOTE: Stack overflow is not checked for now. We do check heap from growing into stack, though.
+constexpr int stack_size = 4096;
 
 extern char *__brkval;  // top of heap (dynamic ram): grows up towards stack
 extern char _estack;    // bottom of stack, top of ram: stack grows down towards heap
@@ -130,7 +138,7 @@ int get_stack_high_water_mark() {
     return static_stack_fill_checker.get_high_water_mark();
 }
 
-// ====  3. Assertions  ================================
+// ====  3. Assertions  =======================================================
 
 [[noreturn]] void __assert_func2(const char *function_name, const char *expression) {
     // TODO: Write to EEPROM.
@@ -152,13 +160,13 @@ int get_stack_high_water_mark() {
 }
 
 
-// ====  4. Writing to file descriptors ================================
+// ====  4. Writing to file descriptors =======================================
 
 // In Print.cpp we define _write() syscall and then use vdprintf() to write. Print class pointer is used
 // as file descriptor.
 
 
-// ====  5. Stack overflow protection  ================================
+// ====  5. Stack overflow protection  ========================================
 //  -fstack-usage -fdump-rtl-dfinish  gcc options can be used to get static stack structure.
 // See http://stackoverflow.com/questions/6387614/how-to-determine-maximum-stack-usage-in-embedded-system-with-gcc
 // Unfortunately, this probably doesn't work with virtual functions.
@@ -169,6 +177,43 @@ int get_stack_high_water_mark() {
 // Yet another way is to place stack in the beginning of RAM. That way we'll fail hard.
 // 
 
-// ====  6. Yield  =========================================
+// ====  6. Yield  ============================================================
 // This needs to be replaced with empty body to avoid linking to all the Serial-s and save memory.
 void yield() {}
+
+
+// ====  7. Printing debug information ========================================
+
+// Link-time constant markers. Note, you need the *address* of these.
+extern char _sdata;   // start of static data
+extern char _edata;
+extern char _sbss;
+extern char _ebss;    // end of static data; bottom of heap
+extern char _estack;  // bottom of stack, top of ram: stack grows down towards heap
+
+void print_platform_memory_info(PrintStream &stream) {
+    uint32_t static_data_size = &_ebss - (char*)((uint32_t)&_sdata & 0xFFFFF000);
+    uint32_t allocated_heap = __brkval - &_ebss;
+    char c, *top_stack = &c;
+    int32_t unallocated = (&_estack - stack_size) - __brkval;
+    int32_t stack_max_used = get_stack_high_water_mark();
+    uint32_t stack_used = &_estack - top_stack;
+
+    struct mallinfo m = mallinfo();
+    stream.printf("RAM: static %d, heap %d (used %d, free %d), unalloc %d, stack %d (used %d, max %d)\n", 
+        static_data_size, allocated_heap, m.uordblks, m.fordblks, unallocated, stack_size, stack_used, stack_max_used);
+}
+
+// ====  8. Basic configuration helpers =======================================
+
+void restart_system() {
+    SCB_AIRCR = 0x5FA0004; // Restart Teensy.
+}
+
+void eeprom_read(uint32_t eeprom_addr, void *dest, uint32_t len) {
+    eeprom_read_block(dest, (void *)eeprom_addr, len);
+}
+
+void eeprom_write(uint32_t eeprom_addr, const void *src, uint32_t len) {
+    eeprom_write_block(src, (void *)eeprom_addr, len);
+}

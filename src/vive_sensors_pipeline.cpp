@@ -7,7 +7,6 @@
 #include "input.h"
 #include "outputs.h"
 #include "pulse_processor.h"
-#include "settings.h"
 
 #include <vector>
 

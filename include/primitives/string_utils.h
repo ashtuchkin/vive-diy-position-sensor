@@ -1,20 +1,18 @@
 #pragma once
 #include <stdint.h>
 #include <exception>
-#include "../primitives/hash.h"
-
-class Stream;
-class Print;
-template<typename T, unsigned C> class Vector;
+#include "hash.h"
 
 // Input string length constants.
 constexpr int max_input_str_len = 256;
 constexpr int max_words = 64;
 
-
-// Non-blocking version of Stream.readBytesUntil('\n', ...). Returns line if found, or NULL if no line.
-// 'buf' argument needs to be provided to keep the accumulated data between calls.
-char *read_line(Stream &stream, Vector<char, max_input_str_len> *buf);
+// Very simple virtual printer class.
+class PrintStream {
+public:
+    virtual size_t write(const char *buffer, size_t size) = 0;
+	int printf(const char *format, ...);
+};
 
 // Parses provided string to null-terminated array of trimmed strings.
 // NOTE: Provided string is changed - null characters are added after words.

@@ -66,9 +66,11 @@ public:
 
     // Get adjusted value of this timestamp in provided time unit. 
     // We try to "extend" the value outside of regular period of timestamp using current time in millis.
-    // NOTE: This function is specialized for tu=1 below.
     // TODO: Add 64bit version of get_value.
     uint32_t get_value(TimeUnit tu) const;
+
+    // Get raw value in 'ticks'.
+    uint32_t get_raw_value() { return time_; }
 
     // Static getters.
     static Timestamp cur_time(); // Implementation will try to get the best resolution possible.
@@ -92,6 +94,7 @@ public:
 
 private:
     constexpr Timestamp(uint32_t time): time_(time) {}
+    static uint32_t cur_time_millis(); // Helper function for get_value().
     uint32_t time_;  // Think about this as some global time mod 2^32.
 };
 

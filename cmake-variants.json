@@ -1,23 +1,30 @@
 {
     "buildType": {
-        "default$": "debug",
+        "default$": "teensy",
         "description$": "the build type to use",
-        "debug": {
-            "oneWordSummary$": "Debug",
-            "description$": "Enable optimizations, include debug info",
-            "buildType": "Debug"
+        "teensy": {
+            "oneWordSummary$": "Teensy",
+            "description$": "Create firmware for Teensy",
+            "buildType": "Debug",
+            "settings": {
+                "PLATFORM": "Teensy"
+            }
         },
-        "release": {
-            "oneWordSummary$": "Release",
-            "description$": "Enable optimizations, omit debug info",
-            "buildType": "Release"
+        "particle": {
+            "oneWordSummary$": "Photon",
+            "description$": "Create library for Particle Photon",
+            "buildType": "Debug",
+            "settings": {
+                "PLATFORM": "Particle",
+                "PARTICLE_PLATFORM": "photon"
+            }
         },
         "test": {
             "oneWordSummary$": "Test",
             "description$": "Test the project",
             "buildType": "Debug",
             "settings": {
-                "TEST_MODE": "TRUE",
+                "PLATFORM": "Host_Test",
                 "CMAKE_C_COMPILER": "/usr/local/bin/gcc-6",
                 "CMAKE_CXX_COMPILER": "/usr/local/bin/g++-6"
             }

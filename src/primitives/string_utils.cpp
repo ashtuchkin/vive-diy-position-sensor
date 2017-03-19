@@ -1,23 +1,19 @@
-#include "string_utils.h"
-#include "vector.h"
+#include "primitives/string_utils.h"
+#include "primitives/vector.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
 #include <utility>
-#include <Stream.h>
 
-// Non-blocking version of Stream.readBytesUntil('\n', ...). Returns line if found, or NULL if no line.
-char *read_line(Stream &stream, Vector<char, max_input_str_len> *buf) {
-    while (true) {
-        int next_char = stream.read();
-        if (next_char < 0) {
-            return NULL;
-        } else if (next_char == '\n') {
-            buf->push(0);
-            buf->clear();
-            return &(*buf)[0];
-        } else if (buf->size() < buf->max_size() - 1) {
-            buf->push(next_char);
-        }
-    }
+int PrintStream::printf(const char *format, ...) {
+    static char printf_buf[256];
+    va_list args;
+    va_start(args, format);
+    int len = vsnprintf(printf_buf, sizeof(printf_buf), format, args);
+    va_end(args);
+    if (len > 0)
+        write(printf_buf, len);
+    return len;
 }
 
 // Parses provided string to null-terminated array of trimmed strings.

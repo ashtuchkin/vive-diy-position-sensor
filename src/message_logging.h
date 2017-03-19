@@ -6,20 +6,19 @@
 #include "primitives/circular_buffer.h"
 #include "primitives/hash.h"
 #include "data_frame_decoder.h"
-#include <Print.h>
 
 // This function is used to print messages used in Producer-Consumer pattern.
 // Please specialize this function for your messages below.
 template<typename T>
-inline void print_value(Print &stream, const T& val); 
+inline void print_value(PrintStream &stream, const T& val); 
 
 template<>
-inline void print_value<Pulse>(Print &stream, const Pulse& val) {
+inline void print_value<Pulse>(PrintStream &stream, const Pulse& val) {
     stream.printf("\nsensor %d, time %dus, len %d ", val.input_idx, val.start_time.get_value(usec), val.pulse_len.get_value(usec));
 }
 
 template<>
-inline void print_value<SensorAnglesFrame>(Print &stream, const SensorAnglesFrame& val) {
+inline void print_value<SensorAnglesFrame>(PrintStream &stream, const SensorAnglesFrame& val) {
     stream.printf("\n%dms: cycle %u, fix %02d, angles ", 
                   val.time.get_value(msec), val.cycle_idx, (int)val.fix_level / 100);
     for (uint32_t i = 0; i < val.sensors.size(); i++) {
@@ -36,13 +35,13 @@ inline void print_value<SensorAnglesFrame>(Print &stream, const SensorAnglesFram
 }
 
 template<>
-inline void print_value<DataFrameBit>(Print &stream, const DataFrameBit& val) {
+inline void print_value<DataFrameBit>(PrintStream &stream, const DataFrameBit& val) {
     stream.printf("\n%dms: base %d, cycle %d, bit %d ", 
                   val.time.get_value(msec), val.base_station_idx, val.cycle_idx, val.bit);
 }
 
 template<>
-inline void print_value<DataFrame>(Print &stream, const DataFrame& frame) {
+inline void print_value<DataFrame>(PrintStream &stream, const DataFrame& frame) {
     stream.printf("\n%dms: ", frame.time.get_value(msec));
     const DecodedDataFrame *df = reinterpret_cast<const DecodedDataFrame *>(&frame.bytes[0]);
     if (frame.bytes.size() == 33 && df->protocol == DecodedDataFrame::cur_protocol) {
@@ -62,7 +61,7 @@ inline void print_value<DataFrame>(Print &stream, const DataFrame& frame) {
 }
 
 template<>
-inline void print_value<ObjectPosition>(Print &stream, const ObjectPosition& val) {
+inline void print_value<ObjectPosition>(PrintStream &stream, const ObjectPosition& val) {
     stream.printf("\n%dms: fix %2d, pos %.4f %.4f %.4f, dist %.4f ", val.time.get_value(msec), 
                                             (int)val.fix_level/100, val.pos[0], val.pos[1], val.pos[2], val.pos_delta);
     if (val.q[0] != 1.0f)
@@ -70,7 +69,7 @@ inline void print_value<ObjectPosition>(Print &stream, const ObjectPosition& val
 }
 
 template<>
-inline void print_value<DataChunk>(Print &stream, const DataChunk& chunk) {
+inline void print_value<DataChunk>(PrintStream &stream, const DataChunk& chunk) {
     stream.printf("\n%dms: stream %d, data ", chunk.time.get_value(msec), chunk.stream_idx);
     for (uint32_t i = 0; i < chunk.data.size(); i++)
         stream.printf("%02x ", chunk.data[i]);
@@ -80,7 +79,7 @@ inline void print_value<DataChunk>(Print &stream, const DataChunk& chunk) {
 template<typename T>
 class PrintableProduceLogger : public ProduceLogger<T> {
 public:
-    virtual void print_logs(Print &stream) = 0;
+    virtual void print_logs(PrintStream &stream) = 0;
 };
 
 template<typename T>
@@ -90,7 +89,7 @@ public:
     virtual void log_produce(const T& val) {
         counter_++;
     }
-    virtual void print_logs(Print &stream) {
+    virtual void print_logs(PrintStream &stream) {
         uint32_t has_idx = idx_ != (uint32_t)-1;
         stream.printf("%s%.*u: %d items\n", name_, has_idx, has_idx && idx_, counter_);
         counter_ = 0;
@@ -112,7 +111,7 @@ public:
         log_.enqueue(val);
         counter_++;
     }
-    virtual void print_logs(Print &stream) {
+    virtual void print_logs(PrintStream &stream) {
         bool first = true;
         uint32_t has_idx = idx_ != (uint32_t)-1;
         stream.printf("%s%.*u: ", name_, has_idx, has_idx && idx_);
@@ -151,7 +150,7 @@ bool producer_debug_cmd(Producer<T> *producer, HashedWord *input_words, const ch
 }
 
 template<typename T>
-void producer_debug_print(Producer<T> *producer, Print &stream) {
+void producer_debug_print(Producer<T> *producer, PrintStream &stream) {
     if (PrintableProduceLogger<T> *logger = static_cast<PrintableProduceLogger<T>*>(producer->logger()))
         logger->print_logs(stream);
 }

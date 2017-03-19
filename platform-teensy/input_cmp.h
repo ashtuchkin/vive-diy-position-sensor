@@ -12,7 +12,7 @@ public:
 
     virtual void start();
     virtual bool debug_cmd(HashedWord *input_words);
-    virtual void debug_print(Print& stream);    
+    virtual void debug_print(PrintStream& stream);    
 
     void _isr_handler(volatile uint8_t *scr);
 
@@ -28,4 +28,6 @@ private:
     int cmp_input_idx_;
     volatile ComparatorPorts *ports_;
     const ComparatorDef *cmp_def_;
+
+    static CreatorRegistrar creator_;
 };

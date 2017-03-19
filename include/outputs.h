@@ -3,6 +3,7 @@
 #pragma once
 #include "primitives/workers.h"
 #include "primitives/producer_consumer.h"
+#include "primitives/static_registration.h"
 #include "messages.h"
 
 // Currently supported: usb serial + 3x hardware serials.
@@ -12,11 +13,9 @@ struct OutputDef {
     bool active;
     uint32_t bitrate;
 
-    void print_def(uint32_t idx, Print &stream);
-    bool parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream);
+    void print_def(uint32_t idx, PrintStream &stream);
+    bool parse_def(uint32_t idx, HashedWord *input_words, PrintStream &err_stream);
 };
-
-class Stream;
 
 class OutputNode
     : public WorkerNode
@@ -25,6 +24,7 @@ class OutputNode
     , public Producer<DataChunk> {
 public:
     static std::unique_ptr<OutputNode> create(uint32_t idx, const OutputDef& def);
+    typedef StaticRegistrar<decltype(create)*> CreatorRegistrar;
 
     // Common methods that do i/o with the stream_ object.
     virtual void consume(const DataChunk &chunk);
@@ -32,23 +32,15 @@ public:
     virtual void do_work(Timestamp cur_time);
 
 protected:
-    OutputNode(uint32_t idx, const OutputDef& def, Stream &stream);
+    OutputNode(uint32_t idx, const OutputDef& def);
+
+    virtual size_t write(const uint8_t *buffer, size_t size) = 0;
+    virtual int read() = 0;
+
     uint32_t node_idx_;
     OutputDef def_;
-    Stream &stream_;
     DataChunk chunk_;
     bool exclusive_mode_;
     uint32_t exclusive_stream_idx_;
 };
 
-
-class UsbSerialOutputNode : public OutputNode {
-public:
-    UsbSerialOutputNode(uint32_t idx, const OutputDef& def);
-};
-
-class HardwareSerialOutputNode : public OutputNode {
-public:
-    HardwareSerialOutputNode(uint32_t idx, const OutputDef& def);
-    virtual void start();
-};

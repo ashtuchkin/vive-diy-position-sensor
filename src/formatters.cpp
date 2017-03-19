@@ -17,7 +17,7 @@ bool FormatterNode::debug_cmd(HashedWord *input_words) {
     }
     return false;
 }
-void FormatterNode::debug_print(Print& stream) {
+void FormatterNode::debug_print(PrintStream &stream) {
     producer_debug_print(this, stream);
 }
 
@@ -27,7 +27,7 @@ void SensorAnglesTextFormatter::consume(const SensorAnglesFrame& f) {
 
     // Print each sensor on its own line.
     for (uint32_t i = 0; i < f.sensors.size(); i++) {
-        DataChunkPrint printer(this, f.time, node_idx_);
+        DataChunkPrintStream printer(this, f.time, node_idx_);
         const SensorAngles &angles = f.sensors[i];
         printer.printf("ANG%d\t%u\t%d", i, time, f.fix_level);
         for (uint32_t j = 0; j < num_cycle_phases; j++) {
@@ -50,7 +50,7 @@ std::unique_ptr<GeometryFormatter> GeometryFormatter::create(uint32_t idx, const
 
 // ======  GeometryTextFormatter  =============================================
 void GeometryTextFormatter::consume(const ObjectPosition& f) {
-    DataChunkPrint printer(this, f.time, node_idx_);
+    DataChunkPrintStream printer(this, f.time, node_idx_);
     printer.printf("OBJ%d\t%u\t%d", f.object_idx, f.time.get_value(msec), f.fix_level);
     if (f.fix_level >= FixLevel::kStaleFix) {
         printer.printf("\t%.4f\t%.4f\t%.4f\t%.4f", f.pos[0], f.pos[1], f.pos[2], f.pos_delta);
@@ -75,7 +75,7 @@ HashedWord formatter_types[] = {
 };
 
 
-void FormatterDef::print_def(uint32_t idx, Print &stream) {
+void FormatterDef::print_def(uint32_t idx, PrintStream &stream) {
     stream.printf("stream%d ", idx);
 
     // Print type & subtype.
@@ -109,7 +109,7 @@ void FormatterDef::print_def(uint32_t idx, Print &stream) {
         stream.printf("> serial%d\n", output_idx);
 }
 
-bool FormatterDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream) {
+bool FormatterDef::parse_def(uint32_t idx, HashedWord *input_words, PrintStream &err_stream) {
     bool type_found = false;
     for (uint32_t i = 0; i < sizeof(formatter_types) / sizeof(formatter_types[0]); i++)
         if (*input_words == formatter_types[i]) {

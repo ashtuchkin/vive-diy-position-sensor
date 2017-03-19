@@ -1,6 +1,7 @@
 #pragma once
 #include "primitives/workers.h"
 #include "primitives/producer_consumer.h"
+#include "primitives/string_utils.h"
 #include "print_helpers.h"
 
 // This node calls debug_cmd and debug_print for all pipeline nodes periodically,
@@ -16,7 +17,7 @@ public:
     virtual void consume_line(char *line, Timestamp time);
     virtual void do_work(Timestamp cur_time);
     virtual bool debug_cmd(HashedWord *input_words);
-    virtual void debug_print(Print &stream);
+    virtual void debug_print(PrintStream &stream);
 
 private:
     void set_output_attached(bool attached);
@@ -28,3 +29,6 @@ private:
     bool output_attached_;
     bool print_debug_memory_;
 };
+
+// This function needs to be defined by the platform.
+void print_platform_memory_info(PrintStream &stream);

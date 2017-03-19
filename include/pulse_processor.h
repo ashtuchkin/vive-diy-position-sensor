@@ -18,7 +18,7 @@ public:
     virtual void do_work(Timestamp cur_time);
 
     virtual bool debug_cmd(HashedWord *input_words);
-    virtual void debug_print(Print& stream);
+    virtual void debug_print(PrintStream &stream);
 
 private:
     void process_long_pulse(const Pulse &p);

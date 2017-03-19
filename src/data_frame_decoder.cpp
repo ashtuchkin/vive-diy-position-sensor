@@ -97,6 +97,6 @@ bool DataFrameDecoder::debug_cmd(HashedWord *input_words) {
     return false;
 }
 
-void DataFrameDecoder::debug_print(Print& stream) {
+void DataFrameDecoder::debug_print(PrintStream &stream) {
     producer_debug_print(this, stream);
 }

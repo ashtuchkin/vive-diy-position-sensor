@@ -1,8 +1,7 @@
 #pragma once
+#include "primitives/workers.h"
+#include "settings.h"
 #include <memory>
-
-class PersistentSettings;
-class Pipeline;
 
 // Create Pipeline specialized for Vive Sensors, using provided configuration settings.
 std::unique_ptr<Pipeline> create_vive_sensor_pipeline(const PersistentSettings &settings);

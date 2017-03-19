@@ -1,5 +1,4 @@
 #include "cycle_phase_classifier.h"
-#include <Print.h>
 
 enum PhaseFixLevels {  // Unscoped enum because we use it more like set of constants.
     kPhaseFixNone = 0,
@@ -120,7 +119,7 @@ bool CyclePhaseClassifier::debug_cmd(HashedWord *input_words) {
         }
     return false;
 }
-void CyclePhaseClassifier::debug_print(Print &stream) {
+void CyclePhaseClassifier::debug_print(PrintStream &stream) {
     if (debug_print_state_) {
         stream.printf("CyclePhaseClassifier: fix %d, phase %d, pulse_base_len %f, history 0x%x, avg error %.1f us\n", 
             fix_level_, phase_shift_, pulse_base_len_, phase_history_, average_error_);

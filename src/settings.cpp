@@ -1,17 +1,14 @@
-// This file manages reading/writing data to EEPROM and configuration mode.
+// This file manages project configuration & persisting it to EEPROM.
 #include "settings.h"
 #include "primitives/string_utils.h"
 #include "vive_sensors_pipeline.h"
 #include "led_state.h"
-
-#include <avr/eeprom.h>
-#include <Stream.h>
-#include <kinetis.h>
+#include "print_helpers.h"
 
 constexpr uint32_t current_settings_version = 0xbabe0000 + sizeof(PersistentSettings);
-constexpr uint32_t *eeprom_addr = 0;
+constexpr uint32_t initial_eeprom_addr = 0;
 
-static_assert(sizeof(PersistentSettings) < E2END - 500, "PersistentSettings must fit into EEPROM with some leeway");
+static_assert(sizeof(PersistentSettings) < 1500, "PersistentSettings must fit into EEPROM with some leeway");
 static_assert(std::is_trivially_copyable<PersistentSettings>(), "All definitions must be trivially copyable to be bitwise-stored");
 
 /* Example settings
@@ -35,10 +32,11 @@ PersistentSettings::PersistentSettings() {
 }
 
 bool PersistentSettings::read_from_eeprom() {
-    uint32_t eeprom_version = eeprom_read_dword(eeprom_addr);
-    if (eeprom_version == current_settings_version) {
-        // Normal initialization.
-        eeprom_read_block(this, eeprom_addr + 4, sizeof(*this));
+    uint32_t eeprom_addr = initial_eeprom_addr, version;
+    eeprom_read(eeprom_addr, &version, sizeof(version)); eeprom_addr += sizeof(version);
+    if (version == current_settings_version) {
+        // Normal initialization: Just copy block of data.
+        eeprom_read(eeprom_addr, this, sizeof(*this));
         return true;
     } 
     // Unknown version.
@@ -46,14 +44,16 @@ bool PersistentSettings::read_from_eeprom() {
 }
 
 void PersistentSettings::write_to_eeprom() {
-    eeprom_write_dword(eeprom_addr, current_settings_version);
-    eeprom_write_block(this, eeprom_addr + 4, sizeof(*this));
+    uint32_t version = current_settings_version;
+    uint32_t eeprom_addr = initial_eeprom_addr;
+    eeprom_write(eeprom_addr, &version, sizeof(version));  eeprom_addr += sizeof(version);
+    eeprom_write(eeprom_addr, this, sizeof(*this));
 }
 
 void PersistentSettings::restart_in_configuration_mode() {
     is_configured_ = false;
     write_to_eeprom();
-    SCB_AIRCR = 0x5FA0004; // Restart Teensy.
+    restart_system();
 }
 
 // Initialize settings.
@@ -65,7 +65,7 @@ void PersistentSettings::reset() {
     outputs_[0].active = true;
 }
 
-bool PersistentSettings::validate_setup(Print &error_stream) {
+bool PersistentSettings::validate_setup(PrintStream &error_stream) {
     try {
         // Try to create the pipeline and then delete it.
         std::unique_ptr<Pipeline> pipeline = create_vive_sensor_pipeline(*this);
@@ -81,7 +81,7 @@ bool PersistentSettings::validate_setup(Print &error_stream) {
 }
 
 template<typename T, unsigned arr_len>
-void PersistentSettings::set_value(Vector<T, arr_len> &arr, uint32_t idx, HashedWord *input_words, Print& stream) {
+void PersistentSettings::set_value(Vector<T, arr_len> &arr, uint32_t idx, HashedWord *input_words, PrintStream &stream) {
     if (idx <= arr.size() && idx < arr_len) {
         T def;
         if (def.parse_def(idx, input_words, stream)) {
@@ -106,26 +106,9 @@ void PersistentSettings::set_value(Vector<T, arr_len> &arr, uint32_t idx, Hashed
         stream.printf("Index too large. Next available index: %d.\n", arr.size());
 }
 
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic warning "-Wstack-usage=512"  // Allow slightly higher stack usage for this function.
-
-void PersistentSettings::initialize_from_user_input(Stream &stream) {
-    Vector<char, max_input_str_len> input_buf{};
-    while (true) {
-        stream.print("config> ");
-        char *input_cmd = nullptr;
-        while (!input_cmd) {
-            input_cmd = read_line(stream, &input_buf);
-
-            set_led_state(LedState::kConfigMode);
-            update_led_pattern(Timestamp::cur_time());
-        } 
-        
-        HashedWord *input_words = hash_words(input_cmd);
-        if (!input_words->word || input_words->word[0] == '#')  // Do nothing on comments and empty lines.
-            continue;
-        
+bool PersistentSettings::process_command(char *input_cmd, PrintStream &stream) {
+    HashedWord *input_words = hash_words(input_cmd);
+    if (*input_words && input_words->word[0] != '#') { // Do nothing on comments and empty lines.
         uint32_t idx = input_words->idx;
         switch (*input_words++) {
         case "view"_hash:
@@ -193,12 +176,54 @@ void PersistentSettings::initialize_from_user_input(Stream &stream) {
 
         case "continue"_hash:
             if (!validate_setup(stream)) break;
-            return;
+            return false;
 
         default:
             stream.printf("Unknown command '%s'. Valid commands: view, <module> <settings>, reset, reload, write, validate, continue.\n", (input_words-1)->word);
         }
     }
-}
-#pragma GCC diagnostic pop
 
+    // Print prompt for the next command.
+    stream.printf("config> ");
+    return true;
+}
+
+
+// == Configuration pipeline ==================================================
+
+class SettingsReaderWriterNode 
+    : public WorkerNode
+    , public DataChunkLineSplitter
+    , public Producer<DataChunk> {
+public:
+    SettingsReaderWriterNode(PersistentSettings *settings, Pipeline *pipeline)
+            : settings_(settings)
+            , pipeline_(pipeline) {
+        set_led_state(LedState::kConfigMode);
+    }
+
+private:
+    virtual void consume_line(char *line, Timestamp time) {
+        DataChunkPrintStream stream(this, time);
+        if (!settings_->process_command(line, stream))
+            pipeline_->stop();
+    }
+
+    virtual void do_work(Timestamp cur_time) {
+        update_led_pattern(cur_time);
+    }
+
+    PersistentSettings *settings_;
+    Pipeline *pipeline_;
+};
+
+std::unique_ptr<Pipeline> PersistentSettings::create_configuration_pipeline(uint32_t stream_idx) {
+    auto pipeline = std::make_unique<Pipeline>();
+
+    auto reader = pipeline->add_back(std::make_unique<SettingsReaderWriterNode>(this, pipeline.get()));
+    auto output_node = pipeline->add_back(OutputNode::create(stream_idx, OutputDef{}));
+    reader->pipe(output_node);
+    output_node->pipe(reader);
+
+    return pipeline;
+}

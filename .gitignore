@@ -9,3 +9,6 @@
 
 # CMake build
 build/*
+
+# External lib files
+libs/particle-firmware

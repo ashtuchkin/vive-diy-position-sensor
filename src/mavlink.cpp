@@ -70,9 +70,9 @@ void GeometryMavlinkFormatter::consume(const ObjectPosition& g) {
 void GeometryMavlinkFormatter::send_message(uint32_t msgid, const char *packet, Timestamp time, 
                                             uint8_t min_length, uint8_t length, uint8_t crc_extra)
 {
-	uint8_t buf[MAVLINK_NUM_HEADER_BYTES];
-	uint8_t ck[2];
-    uint8_t header_len = MAVLINK_CORE_HEADER_LEN;
+	char buf[MAVLINK_NUM_HEADER_BYTES];
+	char ck[2];
+    int header_len = MAVLINK_CORE_HEADER_LEN;
 	bool mavlink1 = false;
 
     if (mavlink1) {
@@ -105,9 +105,9 @@ void GeometryMavlinkFormatter::send_message(uint32_t msgid, const char *packet, 
 	ck[0] = (uint8_t)(checksum & 0xFF);
 	ck[1] = (uint8_t)(checksum >> 8);
 
-    DataChunkPrint printer(this, time, node_idx_, true);
+    DataChunkPrintStream printer(this, time, node_idx_, true);
 	printer.write(buf, header_len+1);
-    printer.write((const uint8_t *)packet, length);
+    printer.write(packet, length);
     printer.write(ck, 2);
 }
 
@@ -123,7 +123,7 @@ bool GeometryMavlinkFormatter::debug_cmd(HashedWord *input_words) {
     return false;
 }
 
-void GeometryMavlinkFormatter::debug_print(Print &stream) {
+void GeometryMavlinkFormatter::debug_print(PrintStream &stream) {
     FormatterNode::debug_print(stream);
     if (debug_print_state_) {
         if (debug_late_messages_ > 0)

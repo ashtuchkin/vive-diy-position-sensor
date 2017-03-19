@@ -84,7 +84,7 @@ bool PointGeometryBuilder::debug_cmd(HashedWord *input_words) {
     }
     return false;
 }
-void PointGeometryBuilder::debug_print(Print& stream) {
+void PointGeometryBuilder::debug_print(PrintStream &stream) {
     producer_debug_print(this, stream);
 }
 
@@ -213,7 +213,7 @@ bool CoordinateSystemConverter::debug_cmd(HashedWord *input_words) {
     }
     return false;
 }
-void CoordinateSystemConverter::debug_print(Print& stream) {
+void CoordinateSystemConverter::debug_print(PrintStream &stream) {
     producer_debug_print(this, stream);
 }
 
@@ -221,7 +221,7 @@ void CoordinateSystemConverter::debug_print(Print& stream) {
 // ======= BaseStationGeometryDef I/O ===========================================
 // Format: base<idx> origin <x> <y> <z> matrix <9x floats>
 
-void BaseStationGeometryDef::print_def(uint32_t idx, Print &stream) {
+void BaseStationGeometryDef::print_def(uint32_t idx, PrintStream &stream) {
     stream.printf("base%d origin", idx);
     for (int j = 0; j < 3; j++)
         stream.printf(" %f", origin[j]);
@@ -231,7 +231,7 @@ void BaseStationGeometryDef::print_def(uint32_t idx, Print &stream) {
     stream.printf("\n");
 }
 
-bool BaseStationGeometryDef::parse_def(uint32_t idx, HashedWord *input_words, Print &stream) {
+bool BaseStationGeometryDef::parse_def(uint32_t idx, HashedWord *input_words, PrintStream &stream) {
     if (*input_words == "origin"_hash)
         input_words++;
     for (int i = 0; i < 3; i++, input_words++)
@@ -250,7 +250,7 @@ bool BaseStationGeometryDef::parse_def(uint32_t idx, HashedWord *input_words, Pr
 // =======  GeometryBuilderDef I/O  ===========================================
 // Format: object<idx> [ sensor<idx> <x> <y> <z> ]+
 
-void GeometryBuilderDef::print_def(uint32_t idx, Print &stream) {
+void GeometryBuilderDef::print_def(uint32_t idx, PrintStream &stream) {
     stream.printf("object%d", idx);
     for (uint32_t i = 0; i < sensors.size(); i++) {
         const SensorLocalGeometry &sensor = sensors[i];
@@ -259,7 +259,7 @@ void GeometryBuilderDef::print_def(uint32_t idx, Print &stream) {
     stream.printf("\n");
 }
 
-bool GeometryBuilderDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream) {
+bool GeometryBuilderDef::parse_def(uint32_t idx, HashedWord *input_words, PrintStream &err_stream) {
     sensors.clear();
     while (*input_words) {
         SensorLocalGeometry sensor;

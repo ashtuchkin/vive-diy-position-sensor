@@ -24,8 +24,8 @@ struct FormatterDef {
     CoordSysType coord_sys_type;
     CoordSysDef coord_sys_params;
 
-    void print_def(uint32_t idx, Print &stream);
-    bool parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream);
+    void print_def(uint32_t idx, PrintStream &stream);
+    bool parse_def(uint32_t idx, HashedWord *input_words, PrintStream &err_stream);
 };
 
 
@@ -35,7 +35,7 @@ class FormatterNode
     , public Producer<DataChunk> {
 public:
     virtual bool debug_cmd(HashedWord *input_words);
-    virtual void debug_print(Print& stream);
+    virtual void debug_print(PrintStream &stream);
 
 protected:
     FormatterNode(uint32_t idx, const FormatterDef &def);
@@ -79,7 +79,7 @@ public:
     virtual void consume(const ObjectPosition& f);
 
     virtual bool debug_cmd(HashedWord *input_words);
-    virtual void debug_print(Print& stream);
+    virtual void debug_print(PrintStream &stream);
 
 private:
     bool position_valid(const ObjectPosition& g);

@@ -1,24 +1,18 @@
 #include "outputs.h"
-#include <Arduino.h>
 
-static HardwareSerial *hardware_serials[num_outputs] = {nullptr, &Serial1, &Serial2, &Serial3};
-
-OutputNode::OutputNode(uint32_t idx, const OutputDef& def, Stream &stream)
+OutputNode::OutputNode(uint32_t idx, const OutputDef& def)
     : node_idx_(idx)
     , def_(def)
-    , stream_(stream)
     , chunk_{}
     , exclusive_mode_(false)
     , exclusive_stream_idx_(0) {
 }
 
 std::unique_ptr<OutputNode> OutputNode::create(uint32_t idx, const OutputDef& def) {
-    if (idx == 0)
-        return std::make_unique<UsbSerialOutputNode>(idx, def);
-    else if (idx < num_outputs)
-        return std::make_unique<HardwareSerialOutputNode>(idx, def);
-    else
-        throw_printf("Invalid output index: %d", idx);
+    for (auto creator_fn : OutputNode::CreatorRegistrar::iterate())
+        if (auto node = creator_fn(idx, def))
+            return node;
+    throw_printf("Invalid output with index: %d", idx);
 }
 
 void OutputNode::consume(const DataChunk &chunk) {
@@ -26,7 +20,7 @@ void OutputNode::consume(const DataChunk &chunk) {
         return;
     
     // NOTE: This will wait until we can fit data into write buffer. Can cause a delay.
-    stream_.write(&chunk.data[0], chunk.data.size());
+    write(&chunk.data[0], chunk.data.size());
 }
 
 void OutputNode::consume(const OutputCommand& cmd) {
@@ -39,7 +33,7 @@ void OutputNode::consume(const OutputCommand& cmd) {
 void OutputNode::do_work(Timestamp cur_time) {
     // Accumulate bytes read from the stream_ in the chunk_.
     while (!chunk_.data.full()) {
-        int c = stream_.read();
+        int c = read();
         if (c < 0)
             break;
         chunk_.time = cur_time;  // Store the time of the last byte read.
@@ -57,30 +51,10 @@ void OutputNode::do_work(Timestamp cur_time) {
 }
 
 
-// ======  UsbSerialOutputNode  ===============================================
-
-UsbSerialOutputNode::UsbSerialOutputNode(uint32_t idx, const OutputDef& def) 
-    : OutputNode(idx, def, Serial) {
-    assert(idx == 0);
-}
-
-
-// ======  HardwareSerialOutputNode  ==========================================
-
-HardwareSerialOutputNode::HardwareSerialOutputNode(uint32_t idx, const OutputDef& def) 
-    : OutputNode(idx, def, *hardware_serials[idx]) {
-    assert(idx > 0 && idx < num_outputs);
-    // TODO: check bitrate and serial format are valid.
-}
-
-void HardwareSerialOutputNode::start() {
-    reinterpret_cast<HardwareSerial *>(&stream_)->begin(def_.bitrate);
-}
-
 
 // ======  OutputDef I/O  =====================================================
 
-void OutputDef::print_def(uint32_t idx, Print &stream) {
+void OutputDef::print_def(uint32_t idx, PrintStream &stream) {
     if (idx == 0 && !active) {
         stream.printf("usb_serial off\n");
     } else if (idx != 0 && active) {
@@ -88,7 +62,7 @@ void OutputDef::print_def(uint32_t idx, Print &stream) {
     }
 }
 
-bool OutputDef::parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream) {
+bool OutputDef::parse_def(uint32_t idx, HashedWord *input_words, PrintStream &err_stream) {
     if (idx == 0 || idx == (uint32_t)-1) {
         // usb_serial: do nothing unless turned off.
         active = (*input_words != "off"_hash);

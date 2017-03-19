@@ -13,8 +13,8 @@ struct BaseStationGeometryDef {
     float mat[9];  // Normalized rotation matrix.
     vec3d origin;  // Origin point
 
-    void print_def(uint32_t idx, Print &stream);
-    bool parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream);
+    void print_def(uint32_t idx, PrintStream &stream);
+    bool parse_def(uint32_t idx, HashedWord *input_words, PrintStream &err_stream);
 };
 
 struct SensorLocalGeometry {
@@ -26,8 +26,8 @@ struct SensorLocalGeometry {
 struct GeometryBuilderDef {
     Vector<SensorLocalGeometry, 4> sensors;
 
-    void print_def(uint32_t idx, Print &stream);
-    bool parse_def(uint32_t idx, HashedWord *input_words, Print &err_stream);
+    void print_def(uint32_t idx, PrintStream &stream);
+    bool parse_def(uint32_t idx, HashedWord *input_words, PrintStream &err_stream);
 };
 
 // Parent, abstract class for GeometryBuilders.
@@ -54,7 +54,7 @@ public:
     virtual void do_work(Timestamp cur_time);
 
     virtual bool debug_cmd(HashedWord *input_words);
-    virtual void debug_print(Print& stream);
+    virtual void debug_print(PrintStream &stream);
 
 private:
     ObjectPosition pos_;
@@ -89,7 +89,7 @@ public:
 
     virtual void consume(const ObjectPosition& geo);
     virtual bool debug_cmd(HashedWord *input_words);
-    virtual void debug_print(Print& stream);
+    virtual void debug_print(PrintStream &stream);
 
 private:
     float mat_[9];
