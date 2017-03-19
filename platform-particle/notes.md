@@ -1,3 +1,11 @@
+## Example configuration
+reset
+sensor0 pin 3 negative tim
+base0 origin -1.528180 2.433750 -1.969390 matrix -0.841840 0.332160 -0.425400 -0.046900 0.740190 0.670760 0.537680 0.584630 -0.607540
+base1 origin 1.718700 2.543170 0.725060 matrix 0.458350 -0.649590 0.606590 0.028970 0.693060 0.720300 -0.888300 -0.312580 0.336480
+object0 sensor0 0.0000 0.0000 0.0000
+stream0 position object0 > usb_serial
+
 
 ## Build sequence for 'main' project.
 dependent modules: user wiring hal system services communication platform wiring_globals

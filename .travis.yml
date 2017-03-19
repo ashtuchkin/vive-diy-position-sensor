@@ -26,7 +26,7 @@ install:
 
 before_script:
   - mkdir build && cd build
-  - cmake -DTEST_MODE=TRUE .. && cmake --build .
+  - cmake -DPLATFORM=Host_Test .. && cmake --build .
 
 script:
   - ctest --output-on-failure
