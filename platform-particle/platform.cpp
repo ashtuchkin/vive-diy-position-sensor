@@ -34,7 +34,7 @@ uint32_t Timestamp::cur_time_millis() {
 LedState cur_led_state = LedState::kNotInitialized;
 LEDStatus led_statuses[] = {
     [(int)LedState::kNotInitialized] = LEDStatus(RGB_COLOR_ORANGE, LED_PATTERN_SOLID),
-    [(int)LedState::kConfigMode]     = LEDStatus(RGB_COLOR_GREEN, LED_PATTERN_BLINK, LED_SPEED_SLOW),
+    [(int)LedState::kConfigMode]     = LEDStatus(RGB_COLOR_ORANGE, LED_PATTERN_BLINK, LED_SPEED_SLOW),
     [(int)LedState::kNoFix]          = LEDStatus(RGB_COLOR_BLUE, LED_PATTERN_BLINK, LED_SPEED_SLOW),
     [(int)LedState::kFixFound]       = LEDStatus(RGB_COLOR_BLUE, LED_PATTERN_BLINK, LED_SPEED_FAST),
 };

@@ -176,6 +176,7 @@ bool PersistentSettings::process_command(char *input_cmd, PrintStream &stream) {
 
         case "continue"_hash:
             if (!validate_setup(stream)) break;
+            is_configured_ = true;
             return false;
 
         default:

@@ -46,7 +46,7 @@ void HardwareSerialOutputNode::start() {
 }
 
 OutputNode::CreatorRegistrar HardwareSerialOutputNode::creator_([](uint32_t idx, const OutputDef& def) -> std::unique_ptr<OutputNode> {
-    if (idx > 0 && idx < num_outputs)
+    if (idx < num_outputs && hardware_serials[idx])
         return std::make_unique<HardwareSerialOutputNode>(idx, def);
     return nullptr;
 });
