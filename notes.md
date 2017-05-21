@@ -1,7 +1,7 @@
 ### TODO
 
  * [ ] Rework docs.
- * [ ] Assertion/termination system.
+ * [ ] Assertion/termination system for Teensy (clear eeprom if continuous; write exception to usb.)
  * [ ] Add FTM input
 
 Later:

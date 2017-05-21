@@ -7,7 +7,7 @@ std::unique_ptr<InputNode> InputNode::create(uint32_t idx, const InputDef &def) 
     for (auto creator_fn : InputNode::CreatorRegistrar::iterate())
         if (auto node = creator_fn(idx, def))
             return node;
-    throw_printf("Unknown/unimplemented input type");
+    throw_printf("Unknown/unimplemented input type: %d", def.input_type);
 }
 
 
