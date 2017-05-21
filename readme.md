@@ -152,9 +152,9 @@ $ git submodule update --init
 Compilation/upload command line (example, using CMake out-of-source build in build/ directory):
 ```bash
 $ cd build
-$ cmake ..
+$ cmake .. -DPLATFORM=Teensy
 $ make  # Build firmware
-$ make vive-diy-position-sensor_Upload  # Upload to Teensy
+$ make vive-diy-position-sensor-upload  # Upload to Teensy
 $ tyc monitor  # Serial console to Teensy
 ```
 
@@ -172,6 +172,6 @@ Getting the code is the same as above. GitHub client for Windows will make it ev
 Building firmware:
 ```
 cd build
-cmake -G Ninja ..
+cmake -G Ninja .. -DPLATFORM=Teensy
 ninja  # Build firmware. Will generate "vive-diy-position-sensor.hex" in current directory.
 ```
