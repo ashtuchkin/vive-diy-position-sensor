@@ -54,6 +54,7 @@ const static ComparatorDef comparator_defs[] = {
 };
 
 constexpr int num_comparators = sizeof(comparator_defs) / sizeof(comparator_defs[0]);
+constexpr int num_inputs = sizeof(comparator_defs[0].input_pins) / sizeof(comparator_defs[0].input_pins[0]);
 
 // Registered InputCmpNode-s, by comparator num. Used by interrupt handlers.
 static InputCmpNode *input_cmps[num_comparators];  
@@ -141,10 +142,13 @@ InputCmpNode::InputCmpNode(uint32_t input_idx, const InputDef &input_def)
     // Find comparator and input num for given pin.
     int cmp_idx, cmp_input_idx;
     bool pin_found = false;
-    for (cmp_idx = 0; cmp_idx < num_comparators && !pin_found; cmp_idx++)
-        for (cmp_input_idx = 0; cmp_input_idx < 6 && !pin_found; cmp_input_idx++)
-            if (comparator_defs[cmp_idx].input_pins[cmp_input_idx] == (int)input_def.pin)
+    for (int i = 0; i < num_comparators; i++)
+        for (int j = 0; j < num_inputs; j++)
+            if (comparator_defs[i].input_pins[j] == (int)input_def.pin) {
+                cmp_idx = i;
+                cmp_input_idx = j;
                 pin_found = true;
+            }
     
     if (!pin_found)
         throw_printf("Pin %lu is not supported for 'cmp' input type.\n", input_def.pin);
