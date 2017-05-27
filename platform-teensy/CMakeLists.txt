@@ -7,6 +7,7 @@ set(TEENSY_SOURCE_FILES
         led_state.cpp
 
         input_cmp.cpp
+        input_ftm.cpp
         output_serial.cpp
 )
 

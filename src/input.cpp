@@ -90,7 +90,7 @@ bool InputDef::parse_def(uint32_t idx, HashedWord *input_words, PrintStream &err
                 break;
             }
         if (i == kInputTypeCount) {
-            err_stream.printf("Unknown input type. Supported types: 'port_irq', 'ftm', 'cmp'.\n"); return false;
+            err_stream.printf("Unknown input type. Supported types: 'port_irq', 'tim', 'cmp'.\n"); return false;
         }
     }
     input_words++;
