@@ -93,7 +93,8 @@ void PersistentSettings::set_value(Vector<T, arr_len> &arr, uint32_t idx, Hashed
 
             if (validate_setup(stream)) {
                 // Success.
-                def.print_def(idx, stream); 
+                stream.printf("Updated: ");
+                arr[idx].print_def(idx, stream);
             } else {
                 // Validation failed. Undo.
                 if (push_new)
