@@ -1,0 +1,13 @@
+<launch>
+
+  <arg name="confidence_thresh" default="800" />
+  <arg name="frame_id" default="vive" />
+  <arg name="port" default="/dev/ttyUSB0" />
+
+  <node pkg="vive_tracker" name="vive_tracker" type="vive_tracker.py" ns="vive_tracker" output="screen" >
+    <param name="confidence_thresh" value="$(arg confidence_thresh)" />
+	<param name="frame_id" value="$(arg frame_id)" />
+    <param name="port" value="$(arg port)" />
+  </node>
+
+</launch>
