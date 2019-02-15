@@ -43,7 +43,7 @@ def vive_tracker():
                     poseStamped=PoseStamped()
                     poseStamped.header.frame_id = "/vive"
                     poseStamped.header.stamp = rospy.Time.now()
-                    poseStamped.pose.position.x = float(rawData[3])
+                    poseStamped.pose.position.x = float(rawData[3])*-1
                     poseStamped.pose.position.y = float(rawData[5])
                     poseStamped.pose.position.z = float(rawData[4])
  
