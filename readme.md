@@ -155,7 +155,7 @@ $ cd build
 $ cmake .. -DPLATFORM=Teensy
 $ make  # Build firmware
 $ make vive-diy-position-sensor-upload  # Upload to Teensy
-$ tyc monitor  # Serial console to Teensy
+$ tycmd monitor  # Serial console to Teensy
 ```
 
 ### Installation on Windows
