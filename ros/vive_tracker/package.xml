@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package>
+  <name>vive_tracker</name>
+  <version>0.0.1</version>
+  <description>
+    This package polls the vive_tracker via serial and publish it as a pose.
+  </description>
+  <maintainer email="bryanribas@gmail.com">Bryan Ribas</maintainer>
+  <license>BSD</license>
+
+  <url type="website">http://www.r1b4z01d.com/</url>
+  <url type="bugtracker">https://github.com/r1b4z01d/vive-diy-position-sensor/issues</url>
+  <url type="repository">https://github.com/r1b4z01d/vive-diy-position-sensor</url>
+  <author>Bryan Ribas</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <run_depend>rospy</run_depend>
+<run_depend>std_msgs</run_depend>
+</package>
